@@ -22,7 +22,7 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 
 ## TO BE IMPLEMENTED
 
-### Algorithms:
+### Algorithms
 
 *  DDPG
 
@@ -35,6 +35,6 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 *  Distributional Q Learning
 
 
-### Modules:
+### Modules
 
 *  ICM
