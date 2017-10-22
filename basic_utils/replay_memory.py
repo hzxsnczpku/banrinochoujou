@@ -1,5 +1,5 @@
 from basic_utils.utils import *
-from options import *
+from basic_utils.options import *
 from collections import defaultdict
 import random
 import operator
