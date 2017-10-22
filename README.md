@@ -3,36 +3,24 @@
 
 Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 
-Basic Agents are listed below:
+## Basic Agents are listed below:
 
-Deep Q Learning
+* [Deep Q Learning](https://arxiv.org/abs/1312.5602)
 
-https://arxiv.org/abs/1312.5602
+* [Double Deep Q Learning](https://arxiv.org/abs/1509.06461)
 
-Double Deep Q Learning
+* [Deep Q Learning with the Priorized Replay Memory](https://arxiv.org/abs/1511.05952)
 
-https://arxiv.org/abs/1509.06461
+* [Asynchronous Advantage Actor-Critic](https://arxiv.org/abs/1602.01783)
 
-Deep Q Learning with the Priorized Replay Memory
+* [Trust Region Policy Optimization](https://arxiv.org/abs/1502.05477)
 
-https://arxiv.org/abs/1511.05952
+* [Proximal Policy Optimization (with the Clipped Surrogate Loss)](https://arxiv.org/abs/1707.06347)
 
-Asynchronous Advantage Actor-Critic
-
-https://arxiv.org/abs/1602.01783
-
-Trust Region Policy Optimization
-
-https://arxiv.org/abs/1502.05477
-
-Proximal Policy Optimization (with the Clipped Surrogate Loss)
-
-Proximal Policy Optimization (with the Adapted Surrogate Loss)
-
-https://arxiv.org/abs/1707.06347
+* [Proximal Policy Optimization (with the Adapted Surrogate Loss)](https://arxiv.org/abs/1707.06347)
 
 
-TO BE IMPLEMENTED:
+## TO BE IMPLEMENTED:
 
 Algorithms:
 
