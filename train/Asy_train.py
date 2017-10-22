@@ -1,8 +1,3 @@
-import os
-used_gpu = '2'
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = used_gpu
-
 import time
 from collections import deque
 
@@ -13,7 +8,7 @@ from models.agents import *
 from basic_utils.env_wrapper import Env_wrapper
 
 
-class Master():
+class Master:
     def __init__(self, cfg):
         self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS, cfg)
         self.callback = Callback()
@@ -123,8 +118,6 @@ def run(cfg, require_q, data_q, recv_q, process_id=0):
             paths = []
 
 
-if __name__ == "__main__":
-    cfg = dict(ENV_NAME="HalfCheetah-v1", agent='Ppo_clip_Agent', timestep_limit=0, n_iter=200,
-               timesteps_per_batch=25000, cg_damping=0.1, save_every=100)
+def train(cfg):
     tr = Master(cfg)
     tr.train()
