@@ -1,9 +1,9 @@
-# banrinochoujou
+# 万里の長城
 これは　万里の長城　です〜
 
 Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 
-## Basic Agents are listed below:
+## Basic Agents
 
 * [Deep Q Learning](https://arxiv.org/abs/1312.5602)
 
@@ -20,21 +20,21 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 * [Proximal Policy Optimization (with the Adapted Surrogate Loss)](https://arxiv.org/abs/1707.06347)
 
 
-## TO BE IMPLEMENTED:
+## TO BE IMPLEMENTED
 
-Algorithms:
+### Algorithms:
 
-  DDPG
+*  DDPG
 
-  Q Learning with a Duel Structure
+*  Q Learning with a Duel Structure
 
-  CEM
+*  CEM
 
-  acktr
+*  acktr
 
-  Distributional Q Learning
+*  Distributional Q Learning
 
 
-Modules:
+### Modules:
 
-  ICM
+*  ICM
