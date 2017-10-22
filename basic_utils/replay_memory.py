@@ -1,4 +1,4 @@
-from utils import *
+from basic_utils.utils import *
 from options import *
 from collections import defaultdict
 import random

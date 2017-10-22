@@ -1,7 +1,7 @@
 from torch import optim
 from torch.nn import functional as F
 
-from utils import *
+from basic_utils.utils import *
 
 
 # ================================================================

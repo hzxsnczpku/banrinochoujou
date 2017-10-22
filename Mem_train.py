@@ -6,8 +6,8 @@ os.environ["CUDA_VISIBLE_DEVICES"] = used_gpu
 from utils import *
 from collections import deque
 from options import *
-from agents import *
-from env_wrapper import Env_wrapper
+from models.agents import *
+from utils.env_wrapper import Env_wrapper
 from collections import OrderedDict
 import time
 

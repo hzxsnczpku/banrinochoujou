@@ -1,119 +1,130 @@
+import os
+used_gpu = '2'
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = used_gpu
+
 import time
-from queue import Queue
-from threading import Thread
+from collections import deque
 
-from agents import *
-from env_wrapper import Env_wrapper
-from options import *
-from utils import *
+from torch import multiprocessing as mp
+from torch.multiprocessing import Queue
 
-
-def rollout(index, q, r, cfg):
-    timestep_limit = cfg["timestep_limit"]
-    env = Env_wrapper(cfg)
-    while True:
-        ob = env.reset()
-        data = defaultdict(list)
-        score = 0
-        for _ in range(timestep_limit):
-            data["observation"].append(ob)
-            q.put((index, ob))
-            action, info = r.get()
-            data["action"].append(action)
-            for k in info:
-                data[k].append(info[k])
-            ob, rew, done, _ = env.step(action)
-            score += rew
-            data["reward"].append(rew)
-            data["not_done"].append(1 - done)
-            data["next_observation"].append(ob)
-            if done:
-                break
-        data = {k: np.array(data[k]) for k in data}
-        data["score"] = score
-        q.put(('path', data))
+from models.agents import *
+from basic_utils.env_wrapper import Env_wrapper
 
 
-class Trainer:
+class Master():
     def __init__(self, cfg):
         self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS, cfg)
         self.callback = Callback()
-        self.scores = []
         env = Env_wrapper(self.cfg)
+        self.cfg["observation_space"] = env.observation_space
+        self.cfg["action_space"] = env.action_space
+        self.cfg["timesteps_per_batch_worker"] = self.cfg["timesteps_per_batch"] / self.cfg["update_threshold"]
         if self.cfg["timestep_limit"] == 0:
             self.cfg["timestep_limit"] = env.timestep_limit
-        if self.cfg["agent"] == "Trpo_Agent":
-            self.cfg = update_default_config(TRPO_OPTIONS, cfg)
-            self.agent = Trpo_Agent(env.observation_space, env.action_space, cfg)
-        elif self.cfg["agent"] == "A3C_Agent":
-            self.cfg = update_default_config(A3C_OPTIONS, cfg)
-            self.agent = A3C_Agent(env.observation_space, env.action_space, cfg)
-        elif self.cfg["agent"] == "Ppo_adapted_Agent":
-            self.cfg = update_default_config(PPO_OPTIONS, cfg)
-            self.agent = Ppo_adapted_Agent(env.observation_space, env.action_space, cfg)
-        elif self.cfg["agent"] == "Ppo_clip_Agent":
-            self.cfg = update_default_config(PPO_OPTIONS, cfg)
-            self.agent = Ppo_clip_Agent(env.observation_space, env.action_space, cfg)
+        self.agent, self.cfg = get_agent(self.cfg)
         if self.cfg["load_model"]:
             self.agent.load_model("./save_model/" + self.cfg["ENV_NAME"] + "_" + self.cfg["agent"])
         env.close()
         del env
 
     def train(self):
+        mp.set_start_method('spawn')
         tstart = time.time()
-        q = Queue()
+        self.agent.policy.net.share_memory()
+        require_q = Queue()
+        data_q = Queue()
         workers = []
         senders = []
         for i in range(self.cfg["n_worker"]):
             r = Queue()
             senders.append(r)
-            workers.append(Thread(target=rollout, args=(i, q, r, self.cfg)))
+            workers.append(mp.Process(target=run, args=(self.cfg, require_q, data_q, r, i)))
+            r.put(self.agent.get_params())
         for worker in workers:
             worker.start()
 
-        paths = []
-        timesteps_sofar = 0
         while True:
-            tasks = []
+            req_sofar = 0
+            end_sofar = 0
             indexes = []
-            while not q.empty():
-                t = q.get()
-                if t[0] == 'path':
-                    paths.append(t[1])
-                    timesteps_sofar += pathlength(t[1])
-                    if timesteps_sofar > self.cfg["timesteps_per_batch"]:
-                        self.update(paths, tstart)
-                        paths = []
-                        timesteps_sofar = 0
-                else:
-                    tasks.append(t[1])
-                    indexes.append(t[0])
-            if len(tasks):
-                ob = np.array(tasks)
-                actions, info = self.agent.act(ob)
-                assert len(indexes) == len(tasks)
-                for i in range(len(indexes)):
-                    info_w = {}
-                    for k in info:
-                        info_w[k] = info[k][i, :]
-                    senders[indexes[i]].put((actions[i], info_w))
+            statslist = []
+            while end_sofar < self.cfg["update_threshold"]:
+                while req_sofar < self.cfg["update_threshold"]:
+                    index, grads = require_q.get()
+                    indexes.append(index)
+                    if grads is not None:
+                        req_sofar += 1
+                        self.agent.set_update(grads)
+                    else:
+                        end_sofar += 1
+                self.agent.step_update()
+                req_sofar = 0
+                for index in indexes:
+                    senders[index].put(self.agent.get_params())
+                indexes = []
+            while req_sofar < self.cfg["update_threshold"]:
+                statslist.append(data_q.get())
+                req_sofar += 1
+            total_stats = merge_episode_stats(statslist)
+            total_stats["TimeElapsed"] = time.time() - tstart
+            self.callback(total_stats)
 
-    def update(self, paths, tstart):
-        for path in paths:
-            self.scores.append(path["score"])
-        stats = OrderedDict()
-        add_episode_stats(stats, paths)
-        for u in self.agent.update(paths):
-            add_prefixed_stats(stats, u[0], u[1])
-        stats["TimeElapsed"] = time.time() - tstart
-        counter = self.callback(stats)
-        if self.cfg["save_every"] is not None and counter % self.cfg["save_every"] == 0:
-            self.agent.save_model("./save_model/" + self.cfg["ENV_NAME"] + "_" + self.cfg["agent"])
-            np.save(np.array(self.scores), "./save_model/" + self.cfg["ENV_NAME"] + "_" + self.cfg["agent"] + ".npy")
+
+def run(cfg, require_q, data_q, recv_q, process_id=0):
+    agent, cfg = get_agent(cfg)
+
+    params = recv_q.get()
+    agent.set_params(params)
+
+    paths = []
+    timestep_limit = cfg["timestep_limit"]
+    env = Env_wrapper(cfg)
+    timesteps_sofar = 0
+    while True:
+        ob = env.reset()
+        data = defaultdict(list)
+        for _ in range(timestep_limit):
+            data["observation"].append(ob)
+            action, info = agent.act(ob.reshape((1,) + ob.shape))
+            data["action"].append(action[0])
+            for k in info:
+                data[k].append(info[k])
+            ob, rew, done, info = env.step(action[0])
+            for k in info:
+                data[k].append(info[k])
+            data["reward"].append(rew)
+            data["not_done"].append(1 - done)
+            data["next_observation"].append(ob)
+            if done:
+                break
+        data = {k: np.array(data[k]) for k in data}
+        timesteps_sofar += pathlength(data)
+        paths.append(data)
+
+        if timesteps_sofar >= cfg["timesteps_per_batch_worker"]:
+            info_before = agent.get_update_info(paths)
+            timesteps_sofar = 0
+
+            for grads in agent.update(paths):
+                require_q.put((process_id, grads))
+                params = recv_q.get()
+                agent.set_params(params)
+            require_q.put((process_id, None))
+            info_after = agent.get_update_info(paths)
+            stats = OrderedDict()
+            add_episode_stats(stats, paths)
+            for u in info_before:
+                add_fixed_stats(stats, u[0], "before", u[1])
+            for u in info_after:
+                add_fixed_stats(stats, u[0], "After", u[1])
+            data_q.put(stats)
+            paths = []
 
 
 if __name__ == "__main__":
-    cfg = dict(ENV_NAME="InvertedDoublePendulum-v1", agent='A3C_Agent', timestep_limit=0, n_iter=200, timesteps_per_batch=25000,
-               gamma=0.99, lam=1., cg_damping=0.1, n_worker=8, save_every=100)
-    tr = Trainer(cfg)
+    cfg = dict(ENV_NAME="HalfCheetah-v1", agent='Ppo_clip_Agent', timestep_limit=0, n_iter=200,
+               timesteps_per_batch=25000, cg_damping=0.1, save_every=100)
+    tr = Master(cfg)
     tr.train()

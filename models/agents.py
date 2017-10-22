@@ -1,9 +1,9 @@
 from options import *
-from utils import update_default_config, compute_advantage
-from net_builder import make_policy, make_baseline, make_q_baseline
+from basic_utils.utils import update_default_config, compute_advantage
+from models.net_builder import make_policy, make_baseline, make_q_baseline
 import numpy as np
-from optimizers import *
-from replay_memory import *
+from models.optimizers import *
+from basic_utils.replay_memory import *
 
 
 # ================================================================

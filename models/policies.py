@@ -1,5 +1,5 @@
-from layers import ConcatFixedStd
-from utils import *
+from basic_utils.layers import ConcatFixedStd
+from basic_utils.utils import *
 
 
 class StochPolicy:

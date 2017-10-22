@@ -5,7 +5,7 @@ from skimage.transform import resize
 from collections import deque
 from gym.spaces import Box
 from options import *
-from utils import update_default_config
+from basic_utils.utils import update_default_config
 
 
 class Env_wrapper:

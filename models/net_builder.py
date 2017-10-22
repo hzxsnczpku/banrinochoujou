@@ -1,9 +1,9 @@
 from torch import nn
 from gym.spaces import Box, Discrete
-from policies import DiagGauss, Categorical, StochPolicy
-from baselines import ValueFunction, QValueFunction
-from utils import *
-from layers import *
+from models.policies import DiagGauss, Categorical, StochPolicy
+from models.baselines import ValueFunction, QValueFunction
+from basic_utils.utils import *
+from basic_utils.layers import *
 
 
 class MLPs_pol(nn.Module):
