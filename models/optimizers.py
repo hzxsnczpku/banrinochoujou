@@ -64,14 +64,13 @@ class Trpo_Updater:
         action_loss = -self.advantages * prob / self.fixed_prob
         return action_loss.mean()
 
-    def step(self, flat_params=None):
-        if flat_params is None:
+    def step(self, flat_params=None, update=False):
+        if update:
             set_flat_params_to(self.net, self.new_params)
             self.new_params = None
-        elif self.new_params is None:
-            self.new_params = flat_params / self.update_threshold
-        else:
-            self.new_params += flat_params / self.update_threshold
+        elif flat_params is not None:
+            mean_params = flat_params / self.update_threshold
+            self.new_params = mean_params if self.new_params is None else self.new_params + mean_params
 
     def derive_data(self, path):
         observations = turn_into_cuda(path["observation"])
@@ -121,11 +120,11 @@ class Adam_Updater:
         self.update_threshold = cfg["update_threshold"]
         self.kl_target = cfg["kl_target"]
 
-    def step(self, grads=None):
-        if grads is None:
+    def step(self, grads=None, update=False):
+        if update:
             self.optimizer.step()
             self.net.zero_grad()
-        else:
+        elif grads is not None:
             for k, l in zip(self.net.parameters(), grads):
                 ave_l = l / self.update_threshold
                 k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
@@ -179,7 +178,7 @@ class Ppo_adapted_Updater:
         if update:
             self.optimizer.step()
             self.net.zero_grad()
-        else:
+        elif grads is not None:
             for k, l in zip(self.net.parameters(), grads):
                 ave_l = l / self.update_threshold
                 k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
@@ -246,7 +245,7 @@ class Ppo_clip_Updater:
         if update:
             self.optimizer.step()
             self.net.zero_grad()
-        else:
+        elif grads is not None:
             for k, l in zip(self.net.parameters(), grads):
                 ave_l = l / self.update_threshold
                 k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
@@ -308,7 +307,7 @@ class Adam_Optimizer:
         if update:
             self.optimizer.step()
             self.net.zero_grad()
-        else:
+        elif grads is not None:
             for k, l in zip(self.net.parameters(), grads):
                 ave_l = l / self.update_threshold
                 k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
