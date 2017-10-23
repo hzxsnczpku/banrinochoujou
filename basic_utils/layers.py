@@ -4,7 +4,7 @@ from basic_utils.utils import *
 class ConcatFixedStd(nn.Module):
     def __init__(self, ishp):
         super(ConcatFixedStd, self).__init__()
-        self.log_std = nn.Parameter(torch.zeros(1, ishp)-1.0)
+        self.log_std = nn.Parameter(torch.zeros(1, ishp))
 
     def forward(self, x):
         Mean = x
