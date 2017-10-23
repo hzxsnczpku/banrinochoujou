@@ -54,9 +54,9 @@ class Policy_Based_Agent(BasicAgent):
 
         return batches
 
-    def step(self, datas=(None, None)):
-        self.policy.updater.step(datas[0])
-        self.baseline.optimizer.step(datas[1])
+    def step(self, datas=(None, None), update=False):
+        self.policy.updater.step(datas[0], update)
+        self.baseline.optimizer.step(datas[1], update)
 
     def get_update_info(self, batch):
         return ("pol", self.policy.updater.derive_data(batch)), ("v", self.baseline.optimizer.derive_data(batch))

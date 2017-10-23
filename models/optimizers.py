@@ -175,8 +175,8 @@ class Ppo_adapted_Updater:
         self.update_threshold = cfg["update_threshold"]
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_updater"])
 
-    def step(self, grads=None):
-        if grads is None:
+    def step(self, grads=None, update=False):
+        if update:
             self.optimizer.step()
             self.net.zero_grad()
         else:
@@ -242,8 +242,8 @@ class Ppo_clip_Updater:
         self.update_threshold = cfg["update_threshold"]
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
 
-    def step(self, grads=None):
-        if grads is None:
+    def step(self, grads=None, update=False):
+        if update:
             self.optimizer.step()
             self.net.zero_grad()
         else:
@@ -304,8 +304,8 @@ class Adam_Optimizer:
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_optimizer"])
         self.update_threshold = cfg["update_threshold"]
 
-    def step(self, grads=None):
-        if grads is None:
+    def step(self, grads=None, update=False):
+        if update:
             self.optimizer.step()
             self.net.zero_grad()
         else:

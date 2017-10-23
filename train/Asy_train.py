@@ -43,10 +43,10 @@ class Master:
                     indexes.append(index)
                     if grads is not None:
                         req_sofar += 1
-                        self.agent.step(grads)
+                        self.agent.step(grads, update=False)
                     else:
                         end_sofar += 1
-                self.agent.step()
+                self.agent.step(update=True)
                 req_sofar = 0
                 for index in indexes:
                     senders[index].put(self.agent.get_params())
