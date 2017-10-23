@@ -1,5 +1,4 @@
 import time
-from collections import deque
 
 from torch import multiprocessing as mp
 from torch.multiprocessing import Queue
@@ -12,22 +11,15 @@ class Master:
     def __init__(self, cfg):
         self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS, cfg)
         self.callback = Callback()
-        env = Env_wrapper(self.cfg)
-        self.cfg["observation_space"] = env.observation_space
-        self.cfg["action_space"] = env.action_space
+        self.cfg = get_env_info(self.cfg)
         self.cfg["timesteps_per_batch_worker"] = self.cfg["timesteps_per_batch"] / self.cfg["update_threshold"]
-        if self.cfg["timestep_limit"] == 0:
-            self.cfg["timestep_limit"] = env.timestep_limit
         self.agent, self.cfg = get_agent(self.cfg)
         if self.cfg["load_model"]:
             self.agent.load_model("./save_model/" + self.cfg["ENV_NAME"] + "_" + self.cfg["agent"])
-        env.close()
-        del env
 
     def train(self):
         mp.set_start_method('spawn')
         tstart = time.time()
-        self.agent.policy.net.share_memory()
         require_q = Queue()
         data_q = Queue()
         workers = []
@@ -99,22 +91,23 @@ def run(cfg, require_q, data_q, recv_q, process_id=0):
         paths.append(data)
 
         if timesteps_sofar >= cfg["timesteps_per_batch_worker"]:
-            info_before = agent.get_update_info(paths)
-            timesteps_sofar = 0
+            batches = agent.preprocess_batch(paths)
+            info_before = agent.get_update_info(batches[0])
 
-            for grads in agent.update(paths):
-                require_q.put((process_id, grads))
-                params = recv_q.get()
-                agent.set_params(params)
+            for batch in batches:
+                require_q.put((process_id, agent.update(batch)))
+                agent.set_params(recv_q.get())
             require_q.put((process_id, None))
-            info_after = agent.get_update_info(paths)
+
+            info_after = agent.get_update_info(batches[-1])
             stats = OrderedDict()
             add_episode_stats(stats, paths)
             for u in info_before:
                 add_fixed_stats(stats, u[0], "before", u[1])
             for u in info_after:
-                add_fixed_stats(stats, u[0], "After", u[1])
+                add_fixed_stats(stats, u[0], "after", u[1])
             data_q.put(stats)
+            timesteps_sofar = 0
             paths = []
 
 

@@ -76,22 +76,12 @@ class Trpo_Updater:
         set_flat_params_to(self.net, self.new_params)
         self.new_params = None
 
-    def derive_data(self, paths):
-        path = pre_process_path(paths, ["observation", "action", "advantage", "prob"])
+    def derive_data(self, path):
         observations = path["observation"]
         actions = path["action"]
         advantages = path["advantage"]
         fixed_dist = path["prob"]
         fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        sortinds = np.random.permutation(observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-
-        observations = observations.index_select(0, sortinds[0:self.batch_size])
-        actions = actions.index_select(0, sortinds[0:self.batch_size])
-        advantages = advantages.index_select(0, sortinds[0:self.batch_size])
-        fixed_dist = fixed_dist.index_select(0, sortinds[0:self.batch_size])
-        fixed_prob = fixed_prob.index_select(0, sortinds[0:self.batch_size])
 
         if use_cuda:
             observations = observations.cuda()
@@ -109,45 +99,35 @@ class Trpo_Updater:
 
         return losses
 
-    def __call__(self, paths):
-        path = pre_process_path(paths, ["observation", "action", "advantage", "prob"])
-        observations = path["observation"]
-        actions = path["action"]
-        advantages = path["advantage"]
-        fixed_dist = path["prob"]
-        fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
+    def __call__(self, path):
+        self.observations = path["observation"]
+        self.actions = path["action"]
+        self.advantages = path["advantage"]
+        self.fixed_dist = path["prob"]
+        self.fixed_prob = self.probtype.likelihood(self.actions, self.fixed_dist).detach()
 
-        sortinds = np.random.permutation(observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-        for istart in range(0, observations.size()[0], self.batch_size):
-            self.observations = observations.index_select(0, sortinds[istart:istart + self.batch_size])
-            self.fixed_dist = fixed_dist.index_select(0, sortinds[istart:istart + self.batch_size])
-            self.actions = actions.index_select(0, sortinds[istart:istart + self.batch_size])
-            self.fixed_prob = fixed_prob.index_select(0, sortinds[istart:istart + self.batch_size])
-            self.advantages = advantages.index_select(0, sortinds[istart:istart + self.batch_size])
+        if use_cuda:
+            self.observations = self.observations.cuda()
+            self.fixed_dist = self.fixed_dist.cuda()
+            self.actions = self.actions.cuda()
+            self.fixed_prob = self.fixed_prob.cuda()
+            self.advantages = self.advantages.cuda()
 
-            if use_cuda:
-                self.observations = self.observations.cuda()
-                self.fixed_dist = self.fixed_dist.cuda()
-                self.actions = self.actions.cuda()
-                self.fixed_prob = self.fixed_prob.cuda()
-                self.advantages = self.advantages.cuda()
+        loss = self.get_loss()
+        grads = torch.autograd.grad(loss, self.net.parameters())
+        loss_grad = torch.cat([grad.view(-1) for grad in grads]).data.cpu()
 
-            loss = self.get_loss()
-            grads = torch.autograd.grad(loss, self.net.parameters())
-            loss_grad = torch.cat([grad.view(-1) for grad in grads]).data.cpu()
-
-            stepdir = self.conjugate_gradients(-loss_grad, self.cg_iters)
-            shs = 0.5 * (stepdir * self.Fvp(stepdir)).sum(0, keepdim=True)
-            lm = torch.sqrt(shs / self.max_kl)
-            fullstep = stepdir / lm[0]
-            neggdotstepdir = (-loss_grad * stepdir).sum(0, keepdim=True)
-            if use_cuda:
-                fullstep = fullstep.cuda()
-                neggdotstepdir = neggdotstepdir.cuda()
-            prev_params = get_flat_params_from(self.net)
-            success, new_params = self.linesearch(prev_params, fullstep, neggdotstepdir / lm[0])
-            yield new_params
+        stepdir = self.conjugate_gradients(-loss_grad, self.cg_iters)
+        shs = 0.5 * (stepdir * self.Fvp(stepdir)).sum(0, keepdim=True)
+        lm = torch.sqrt(shs / self.max_kl)
+        fullstep = stepdir / lm[0]
+        neggdotstepdir = (-loss_grad * stepdir).sum(0, keepdim=True)
+        if use_cuda:
+            fullstep = fullstep.cuda()
+            neggdotstepdir = neggdotstepdir.cuda()
+        prev_params = get_flat_params_from(self.net)
+        success, new_params = self.linesearch(prev_params, fullstep, neggdotstepdir / lm[0])
+        return new_params
 
 
 # ================================================================
@@ -171,20 +151,11 @@ class Adam_Updater:
         self.optimizer.step()
         self.net.zero_grad()
 
-    def derive_data(self, paths):
-        path = pre_process_path(paths, ["observation", "action", "advantage", "prob"])
+    def derive_data(self, path):
         observations = path["observation"]
         actions = path["action"]
         advantages = path["advantage"]
         fixed_dist = path["prob"]
-
-        sortinds = np.random.permutation(observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-
-        observations = observations.index_select(0, sortinds[0:self.batch_size])
-        actions = actions.index_select(0, sortinds[0:self.batch_size])
-        advantages = advantages.index_select(0, sortinds[0:self.batch_size])
-        fixed_dist = fixed_dist.index_select(0, sortinds[0:self.batch_size])
 
         if use_cuda:
             observations = observations.cuda()
@@ -196,37 +167,28 @@ class Adam_Updater:
 
         return losses
 
-    def __call__(self, paths):
-        path = pre_process_path(paths, ["observation", "action", "advantage", "prob"])
-        self.observations = path["observation"]
-        self.actions = path["action"]
-        self.advantages = path["advantage"]
-        self.fixed_dist = path["prob"]
+    def __call__(self, path):
+        observations_batch = path["observation"]
+        actions_batch = path["action"]
+        advantages_batch = path["advantage"]
+        fixed_dist_batch = path["prob"]
 
-        sortinds = np.random.permutation(self.observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-        for istart in range(0, self.observations.size()[0], self.batch_size):
-            observations_batch = self.observations.index_select(0, sortinds[istart:istart + self.batch_size])
-            actions_batch = self.actions.index_select(0, sortinds[istart:istart + self.batch_size])
-            advantages_batch = self.advantages.index_select(0, sortinds[istart:istart + self.batch_size])
-            fixed_dist_batch = self.fixed_dist.index_select(0, sortinds[istart:istart + self.batch_size])
+        if use_cuda:
+            observations_batch = observations_batch.cuda()
+            fixed_dist_batch = fixed_dist_batch.cuda()
+            actions_batch = actions_batch.cuda()
+            advantages_batch = advantages_batch.cuda()
 
-            if use_cuda:
-                observations_batch = observations_batch.cuda()
-                fixed_dist_batch = fixed_dist_batch.cuda()
-                actions_batch = actions_batch.cuda()
-                advantages_batch = advantages_batch.cuda()
+        prob = self.net(observations_batch)
+        kl = self.probtype.kl(fixed_dist_batch, prob).mean().data[0]
+        if kl > 4 * self.kl_target:
+            return None
 
-            prob = self.net(observations_batch)
-            kl = self.probtype.kl(fixed_dist_batch, prob).mean().data[0]
-            if kl > 4 * self.kl_target:
-                continue
-            surr = -(self.probtype.loglikelihood(actions_batch, prob) * advantages_batch).mean()
-
-            self.net.zero_grad()
-            surr.backward()
-            grads = [k.grad for k in self.net.parameters()]
-            yield grads
+        surr = -(self.probtype.loglikelihood(actions_batch, prob) * advantages_batch).mean()
+        self.net.zero_grad()
+        surr.backward()
+        grads = [k.grad for k in self.net.parameters()]
+        return grads
 
 
 # ================================================================
@@ -253,21 +215,12 @@ class Ppo_adapted_Updater:
         self.optimizer.step()
         self.net.zero_grad()
 
-    def derive_data(self, paths):
-        path = pre_process_path(paths, ["observation", "action", "advantage", "prob"])
+    def derive_data(self, path):
         observations = path["observation"]
         actions = path["action"]
         advantages = path["advantage"]
         fixed_dist = path["prob"]
         fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        sortinds = np.random.permutation(observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-        observations = observations.index_select(0, sortinds[0:self.batch_size])
-        fixed_dist = fixed_dist.index_select(0, sortinds[0:self.batch_size])
-        actions = actions.index_select(0, sortinds[0:self.batch_size])
-        fixed_prob = fixed_prob.index_select(0, sortinds[0:self.batch_size])
-        advantages = advantages.index_select(0, sortinds[0:self.batch_size])
 
         if use_cuda:
             observations = observations.cuda()
@@ -296,43 +249,33 @@ class Ppo_adapted_Updater:
 
         return losses
 
-    def __call__(self, paths):
-        path = pre_process_path(paths, ["observation", "action", "advantage", "prob"])
-        self.observations = path["observation"]
-        self.actions = path["action"]
-        self.advantages = path["advantage"]
-        self.fixed_dist = path["prob"]
-        self.fixed_prob = self.probtype.likelihood(self.actions, self.fixed_dist).detach()
+    def __call__(self, path):
+        observations = path["observation"]
+        actions = path["action"]
+        advantages = path["advantage"]
+        fixed_dist = path["prob"]
+        fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
 
-        sortinds = np.random.permutation(self.observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-        for istart in range(0, self.observations.size()[0], self.batch_size):
-            observations_batch = self.observations.index_select(0, sortinds[istart:istart + self.batch_size])
-            fixed_dist_batch = self.fixed_dist.index_select(0, sortinds[istart:istart + self.batch_size])
-            actions_batch = self.actions.index_select(0, sortinds[istart:istart + self.batch_size])
-            fixed_prob_batch = self.fixed_prob.index_select(0, sortinds[istart:istart + self.batch_size])
-            advantages_batch = self.advantages.index_select(0, sortinds[istart:istart + self.batch_size])
+        if use_cuda:
+            observations = observations.cuda()
+            fixed_dist = fixed_dist.cuda()
+            actions = actions.cuda()
+            fixed_prob = fixed_prob.cuda()
+            advantages = advantages.cuda()
 
-            if use_cuda:
-                observations_batch = observations_batch.cuda()
-                fixed_dist_batch = fixed_dist_batch.cuda()
-                actions_batch = actions_batch.cuda()
-                fixed_prob_batch = fixed_prob_batch.cuda()
-                advantages_batch = advantages_batch.cuda()
+        new_prob = self.net(observations)
+        new_p = self.probtype.likelihood(actions, new_prob)
+        prob_ratio = new_p / fixed_prob
+        surr = -torch.mean(prob_ratio * advantages)
+        kl = self.probtype.kl(fixed_dist, new_prob).mean()
+        surr_pen = surr + self.kl_beta * kl
+        if (kl > self.kl_cutoff).data[0]:
+            surr_pen += self.kl_cutoff_coeff * (kl - self.kl_cutoff).pow(2)
 
-            new_prob = self.net(observations_batch)
-            new_p = self.probtype.likelihood(actions_batch, new_prob)
-            prob_ratio = new_p / fixed_prob_batch
-            surr = -torch.mean(prob_ratio * advantages_batch)
-            kl = self.probtype.kl(fixed_dist_batch, new_prob).mean()
-            surr_pen = surr + self.kl_beta * kl
-            if (kl > self.kl_cutoff).data[0]:
-                surr_pen += self.kl_cutoff_coeff * (kl - self.kl_cutoff).pow(2)
-
-            self.net.zero_grad()
-            surr_pen.backward()
-            grads = [k.grad for k in self.net.parameters()]
-            yield grads
+        self.net.zero_grad()
+        surr_pen.backward()
+        grads = [k.grad for k in self.net.parameters()]
+        return grads
 
 
 class Ppo_clip_Updater:
@@ -354,21 +297,12 @@ class Ppo_clip_Updater:
         self.optimizer.step()
         self.net.zero_grad()
 
-    def derive_data(self, paths):
-        path = pre_process_path(paths, ["observation", "action", "advantage", "prob"])
+    def derive_data(self, path):
         observations = path["observation"]
         actions = path["action"]
         advantages = path["advantage"]
         fixed_dist = path["prob"]
         fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        sortinds = np.random.permutation(observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-        observations = observations.index_select(0, sortinds[0:self.batch_size])
-        fixed_dist = fixed_dist.index_select(0, sortinds[0:self.batch_size])
-        actions = actions.index_select(0, sortinds[0:self.batch_size])
-        fixed_prob = fixed_prob.index_select(0, sortinds[0:self.batch_size])
-        advantages = advantages.index_select(0, sortinds[0:self.batch_size])
 
         if use_cuda:
             observations = observations.cuda()
@@ -390,45 +324,35 @@ class Ppo_clip_Updater:
                   "ent": self.probtype.entropy(new_prob).data.mean()}
         return losses
 
-    def __call__(self, paths):
-        path = pre_process_path(paths, ["observation", "action", "advantage", "prob"])
-        self.observations = path["observation"]
-        self.actions = path["action"]
-        self.advantages = path["advantage"]
-        self.fixed_dist = path["prob"]
-        self.fixed_prob = self.probtype.likelihood(self.actions, self.fixed_dist).detach()
+    def __call__(self, path):
+        observations = path["observation"]
+        actions = path["action"]
+        advantages = path["advantage"]
+        fixed_dist = path["prob"]
+        fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
 
-        sortinds = np.random.permutation(self.observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-        for istart in range(0, self.observations.size()[0], self.batch_size):
-            observations_batch = self.observations.index_select(0, sortinds[istart:istart + self.batch_size])
-            fixed_dist_batch = self.fixed_dist.index_select(0, sortinds[istart:istart + self.batch_size])
-            actions_batch = self.actions.index_select(0, sortinds[istart:istart + self.batch_size])
-            fixed_prob_batch = self.fixed_prob.index_select(0, sortinds[istart:istart + self.batch_size])
-            advantages_batch = self.advantages.index_select(0, sortinds[istart:istart + self.batch_size])
+        if use_cuda:
+            observations = observations.cuda()
+            fixed_dist = fixed_dist.cuda()
+            actions = actions.cuda()
+            fixed_prob = fixed_prob.cuda()
+            advantages = advantages.cuda()
 
-            if use_cuda:
-                observations_batch = observations_batch.cuda()
-                fixed_dist_batch = fixed_dist_batch.cuda()
-                actions_batch = actions_batch.cuda()
-                fixed_prob_batch = fixed_prob_batch.cuda()
-                advantages_batch = advantages_batch.cuda()
+        new_prob = self.net(observations)
+        kl = self.probtype.kl(fixed_dist, new_prob).mean()
+        if kl.data[0] > 4 * self.kl_target:
+            return None
+        new_p = self.probtype.likelihood(actions, new_prob)
+        prob_ratio = new_p / fixed_prob
+        cliped_ratio = torch.clamp(prob_ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon)
+        surr = -prob_ratio * advantages
+        cliped_surr = -cliped_ratio * advantages
+        clip_loss = torch.cat([surr, cliped_surr], 1).max(1)[0].mean()
 
-            new_prob = self.net(observations_batch)
-            kl = self.probtype.kl(fixed_dist_batch, new_prob).mean()
-            if kl.data[0] > 4 * self.kl_target:
-                continue
-            new_p = self.probtype.likelihood(actions_batch, new_prob)
-            prob_ratio = new_p / fixed_prob_batch
-            cliped_ratio = torch.clamp(prob_ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon)
-            surr = -prob_ratio * advantages_batch
-            cliped_surr = -cliped_ratio * advantages_batch
-            clip_loss = torch.cat([surr, cliped_surr], 1).max(1)[0].mean()
-
-            self.net.zero_grad()
-            clip_loss.backward()
-            grads = [k.grad for k in self.net.parameters()]
-            yield grads
+        self.net.zero_grad()
+        clip_loss.backward()
+        grads = [k.grad for k in self.net.parameters()]
+        return grads
 
 
 # ================================================================
@@ -450,15 +374,9 @@ class Adam_Optimizer:
         self.optimizer.step()
         self.net.zero_grad()
 
-    def derive_data(self, paths):
-        path = pre_process_path(paths, ["observation", "return"])
+    def derive_data(self, path):
         observations = path["observation"]
         y_targ = path["return"]
-
-        sortinds = np.random.permutation(observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-        observations = observations.index_select(0, sortinds[0:self.batch_size])
-        y_targ = y_targ.index_select(0, sortinds[0:self.batch_size])
 
         if use_cuda:
             observations = observations.cuda()
@@ -470,25 +388,21 @@ class Adam_Optimizer:
         exp_var = 1 - np.var(td.data.cpu().numpy()) / np.var(y_targ.data.cpu().numpy())
         return {"loss": loss.data[0], "explainedvar": exp_var}
 
-    def __call__(self, paths):
-        path = pre_process_path(paths, ["observation", "return"])
+    def __call__(self, path):
         observations = path["observation"]
         y_targ = path["return"]
-        sortinds = np.random.permutation(observations.size()[0])
-        sortinds = torch.from_numpy(sortinds).long()
-        for istart in range(0, observations.size()[0], self.batch_size):
-            observations_batch = observations.index_select(0, sortinds[istart:istart + self.batch_size])
-            y_targ_batch = y_targ.index_select(0, sortinds[istart:istart + self.batch_size])
-            if use_cuda:
-                observations_batch = observations_batch.cuda()
-                y_targ_batch = y_targ_batch.cuda()
-            td = self.net(observations_batch) - y_targ_batch
-            loss = td.pow(2).mean()
 
-            self.net.zero_grad()
-            loss.backward()
-            grads = [k.grad for k in self.net.parameters()]
-            yield grads
+        if use_cuda:
+            observations = observations.cuda()
+            y_targ = y_targ.cuda()
+
+        td = self.net(observations) - y_targ
+        loss = td.pow(2).mean()
+
+        self.net.zero_grad()
+        loss.backward()
+        grads = [k.grad for k in self.net.parameters()]
+        return grads
 
 
 # ================================================================

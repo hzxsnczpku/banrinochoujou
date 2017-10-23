@@ -4,8 +4,6 @@ from skimage.color import rgb2gray
 from skimage.transform import resize
 from collections import deque
 from gym.spaces import Box
-from basic_utils.options import *
-from basic_utils.utils import update_default_config
 
 
 class Env_wrapper:

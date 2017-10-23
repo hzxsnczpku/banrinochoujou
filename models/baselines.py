@@ -10,9 +10,8 @@ class ValueFunction:
         observations = np_to_var(np.array(ob_no))
         return self.net(observations).data.cpu().numpy()
 
-    def fit(self, paths):
-        for data in self.optimizer(paths):
-            yield data
+    def fit(self, batch):
+        return self.optimizer(batch)
 
     def save_model(self, name):
         torch.save(self.net, name + "_baseline.pkl")

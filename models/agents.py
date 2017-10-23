@@ -38,10 +38,33 @@ class Policy_Based_Agent(BasicAgent):
     def act(self, ob_no):
         return self.policy.act(ob_no, stochastic=self.stochastic)
 
-    def update(self, paths):
+    def preprocess_batch(self, paths):
         compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
-        for vf_stats, pol_stats in zip(self.baseline.fit(paths), self.policy.update(paths)):
-            yield [pol_stats, vf_stats]
+        processed_path = pre_process_path(paths, ["observation", "action", "advantage", "prob", "return"])
+        observations = processed_path["observation"]
+        actions = processed_path["action"]
+        advantages = processed_path["advantage"]
+        fixed_dist = processed_path["prob"]
+        rew = processed_path["return"]
+
+        total_num = observations.size()[0]
+        batch_size = self.cfg["batch_size"]
+        sortinds = np.random.permutation(total_num)
+        sortinds = torch.from_numpy(sortinds).long()
+        batches = []
+        for istart in range(0, total_num, batch_size):
+            batch = {"observation": observations.index_select(0, sortinds[istart:istart + batch_size]),
+                     "action": actions.index_select(0, sortinds[istart:istart + batch_size]),
+                     "advantage": advantages.index_select(0, sortinds[istart:istart + batch_size]),
+                     "prob": fixed_dist.index_select(0, sortinds[istart:istart + batch_size]),
+                     "return": rew.index_select(0, sortinds[istart:istart + batch_size])}
+            batches.append(batch)
+        return batches
+
+    def update(self, batch):
+        vf_stats = self.baseline.fit(batch)
+        pol_stats = self.policy.update(batch)
+        return pol_stats, vf_stats
 
     def save_model(self, name):
         self.policy.save_model(name)
@@ -66,9 +89,8 @@ class Policy_Based_Agent(BasicAgent):
         self.policy.updater.step()
         self.baseline.optimizer.step()
 
-    def get_update_info(self, paths):
-        compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
-        return ("pol", self.policy.updater.derive_data(paths)), ("v", self.baseline.optimizer.derive_data(paths))
+    def get_update_info(self, batch):
+        return ("pol", self.policy.updater.derive_data(batch)), ("v", self.baseline.optimizer.derive_data(batch))
 
 
 # ================================================================

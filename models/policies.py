@@ -16,9 +16,8 @@ class StochPolicy:
         else:
             return self.probtype.maxprob(prob), {"prob": prob[0]}
 
-    def update(self, paths):
-        for data in self.updater(paths):
-            yield data
+    def update(self, batch):
+        return self.updater(batch)
 
     def save_model(self, name):
         torch.save(self.net, name + "_policy.pkl")

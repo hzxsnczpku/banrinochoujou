@@ -3,6 +3,7 @@ from torch import nn
 import numpy as np
 import torch
 from tabulate import tabulate
+from basic_utils.env_wrapper import Env_wrapper
 
 
 def discount(x, gamma, last=0):
@@ -145,3 +146,13 @@ def set_flat_params_to(model, flat_params):
         param.data.copy_(
             flat_params[prev_ind:prev_ind + flat_size].view(param.size()))
         prev_ind += flat_size
+
+
+def get_env_info(cfg):
+    env = Env_wrapper(cfg)
+    cfg["observation_space"] = env.observation_space
+    cfg["action_space"] = env.action_space
+    if cfg["timestep_limit"] == 0:
+        cfg["timestep_limit"] = env.timestep_limit
+    env.close()
+    return cfg
