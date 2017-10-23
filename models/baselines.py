@@ -6,8 +6,8 @@ class ValueFunction:
         self.net = net
         self.optimizer = optimizer(self.net, cfg)
 
-    def predict(self, ob_no):
-        observations = np_to_var(np.array(ob_no))
+    def predict(self, ob):
+        observations = turn_into_cuda(np_to_var(np.array(ob)))
         return self.net(observations).data.cpu().numpy()
 
     def fit(self, batch):

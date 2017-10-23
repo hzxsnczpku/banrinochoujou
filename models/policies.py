@@ -9,7 +9,7 @@ class StochPolicy:
         self.updater = updater(self.net, self.probtype, cfg)
 
     def act(self, ob, stochastic=True):
-        ob = np_to_var(ob)
+        ob = turn_into_cuda(np_to_var(ob))
         prob = self.net(ob).data.cpu().numpy()
         if stochastic:
             return self.probtype.sample(prob), {"prob": prob[0]}
