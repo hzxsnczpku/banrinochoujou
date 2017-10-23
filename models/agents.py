@@ -27,10 +27,8 @@ class BasicAgent:
 # Policy Based Agent
 # ================================================================
 class Policy_Based_Agent(BasicAgent):
-    options = MLP_OPTIONS + PG_OPTIONS
-
     def __init__(self, updater, optimizer, usercfg):
-        self.cfg = update_default_config(self.options, usercfg)
+        self.cfg = usercfg
         self.policy = make_policy(updater, self.cfg)
         self.baseline = make_baseline(optimizer, self.cfg)
         self.stochastic = True
@@ -40,30 +38,32 @@ class Policy_Based_Agent(BasicAgent):
 
     def preprocess_batch(self, paths):
         compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
-        processed_path = pre_process_path(paths, ["observation", "action", "advantage", "prob", "return"])
-        observations = processed_path["observation"]
-        actions = processed_path["action"]
-        advantages = processed_path["advantage"]
-        fixed_dist = processed_path["prob"]
-        rew = processed_path["return"]
-
-        total_num = observations.size()[0]
+        keys = ["observation", "action", "advantage", "prob", "return"]
+        processed_path = pre_process_path(paths, keys)
+        total_num = processed_path[keys[0]].size()[0]
         batch_size = self.cfg["batch_size"]
+
         sortinds = np.random.permutation(total_num)
         sortinds = torch.from_numpy(sortinds).long()
         batches = []
         for istart in range(0, total_num, batch_size):
-            batch = {"observation": observations.index_select(0, sortinds[istart:istart + batch_size]),
-                     "action": actions.index_select(0, sortinds[istart:istart + batch_size]),
-                     "advantage": advantages.index_select(0, sortinds[istart:istart + batch_size]),
-                     "prob": fixed_dist.index_select(0, sortinds[istart:istart + batch_size]),
-                     "return": rew.index_select(0, sortinds[istart:istart + batch_size])}
+            batch = dict()
+            for k in keys:
+                batch[k] = processed_path[k].index_select(0, sortinds[istart:istart + batch_size])
             batches.append(batch)
+
         return batches
 
+    def step(self, datas=(None, None)):
+        self.policy.updater.step(datas[0])
+        self.baseline.optimizer.step(datas[1])
+
+    def get_update_info(self, batch):
+        return ("pol", self.policy.updater.derive_data(batch)), ("v", self.baseline.optimizer.derive_data(batch))
+
     def update(self, batch):
-        vf_stats = self.baseline.fit(batch)
         pol_stats = self.policy.update(batch)
+        vf_stats = self.baseline.fit(batch)
         return pol_stats, vf_stats
 
     def save_model(self, name):
@@ -80,17 +80,6 @@ class Policy_Based_Agent(BasicAgent):
     def set_params(self, state_dicts):
         self.policy.net.load_state_dict(state_dicts[0])
         self.baseline.net.load_state_dict(state_dicts[1])
-
-    def set_update(self, datas):
-        self.policy.updater.set_update(datas[0])
-        self.baseline.optimizer.set_update(datas[1])
-
-    def step_update(self):
-        self.policy.updater.step()
-        self.baseline.optimizer.step()
-
-    def get_update_info(self, batch):
-        return ("pol", self.policy.updater.derive_data(batch)), ("v", self.baseline.optimizer.derive_data(batch))
 
 
 # ================================================================

@@ -143,8 +143,7 @@ def set_flat_params_to(model, flat_params):
     prev_ind = 0
     for param in model.parameters():
         flat_size = int(np.prod(list(param.size())))
-        param.data.copy_(
-            flat_params[prev_ind:prev_ind + flat_size].view(param.size()))
+        param.data.copy_(flat_params[prev_ind:prev_ind + flat_size].view(param.size()))
         prev_ind += flat_size
 
 
@@ -156,3 +155,7 @@ def get_env_info(cfg):
         cfg["timestep_limit"] = env.timestep_limit
     env.close()
     return cfg
+
+
+def turn_into_cuda(var):
+    return var.cuda() if use_cuda else var

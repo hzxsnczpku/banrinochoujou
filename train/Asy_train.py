@@ -43,10 +43,10 @@ class Master:
                     indexes.append(index)
                     if grads is not None:
                         req_sofar += 1
-                        self.agent.set_update(grads)
+                        self.agent.step(grads)
                     else:
                         end_sofar += 1
-                self.agent.step_update()
+                self.agent.step()
                 req_sofar = 0
                 for index in indexes:
                     senders[index].put(self.agent.get_params())
@@ -61,18 +61,16 @@ class Master:
 
 def run(cfg, require_q, data_q, recv_q, process_id=0):
     agent, cfg = get_agent(cfg)
-
     params = recv_q.get()
     agent.set_params(params)
 
     paths = []
-    timestep_limit = cfg["timestep_limit"]
     env = Env_wrapper(cfg)
     timesteps_sofar = 0
     while True:
         ob = env.reset()
         data = defaultdict(list)
-        for _ in range(timestep_limit):
+        for _ in range(cfg["timestep_limit"]):
             data["observation"].append(ob)
             action, info = agent.act(ob.reshape((1,) + ob.shape))
             data["action"].append(action[0])

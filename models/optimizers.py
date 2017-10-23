@@ -1,5 +1,4 @@
 from torch import optim
-from torch.nn import functional as F
 
 from basic_utils.utils import *
 
@@ -16,7 +15,6 @@ class Trpo_Updater:
         self.cg_iters = cfg["cg_iters"]
         self.update_threshold = cfg["update_threshold"]
         self.new_params = None
-        self.batch_size = cfg["batch_size"]
 
     def conjugate_gradients(self, b, nsteps, residual_tol=1e-10):
         x = torch.zeros(b.size())
@@ -66,29 +64,21 @@ class Trpo_Updater:
         action_loss = -self.advantages * prob / self.fixed_prob
         return action_loss.mean()
 
-    def set_update(self, flat_params):
-        if self.new_params is None:
+    def step(self, flat_params=None):
+        if flat_params is None:
+            set_flat_params_to(self.net, self.new_params)
+            self.new_params = None
+        elif self.new_params is None:
             self.new_params = flat_params / self.update_threshold
         else:
             self.new_params += flat_params / self.update_threshold
 
-    def step(self):
-        set_flat_params_to(self.net, self.new_params)
-        self.new_params = None
-
     def derive_data(self, path):
-        observations = path["observation"]
-        actions = path["action"]
-        advantages = path["advantage"]
-        fixed_dist = path["prob"]
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        advantages = turn_into_cuda(path["advantage"])
+        fixed_dist = turn_into_cuda(path["prob"])
         fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        if use_cuda:
-            observations = observations.cuda()
-            actions = actions.cuda()
-            advantages = advantages.cuda()
-            fixed_dist = fixed_dist.cuda()
-            fixed_prob = fixed_prob.cuda()
 
         new_prob = self.net(observations)
         new_p = self.probtype.likelihood(actions, new_prob)
@@ -100,18 +90,11 @@ class Trpo_Updater:
         return losses
 
     def __call__(self, path):
-        self.observations = path["observation"]
-        self.actions = path["action"]
-        self.advantages = path["advantage"]
-        self.fixed_dist = path["prob"]
+        self.observations = turn_into_cuda(path["observation"])
+        self.actions = turn_into_cuda(path["action"])
+        self.advantages = turn_into_cuda(path["advantage"])
+        self.fixed_dist = turn_into_cuda(path["prob"])
         self.fixed_prob = self.probtype.likelihood(self.actions, self.fixed_dist).detach()
-
-        if use_cuda:
-            self.observations = self.observations.cuda()
-            self.fixed_dist = self.fixed_dist.cuda()
-            self.actions = self.actions.cuda()
-            self.fixed_prob = self.fixed_prob.cuda()
-            self.advantages = self.advantages.cuda()
 
         loss = self.get_loss()
         grads = torch.autograd.grad(loss, self.net.parameters())
@@ -120,11 +103,8 @@ class Trpo_Updater:
         stepdir = self.conjugate_gradients(-loss_grad, self.cg_iters)
         shs = 0.5 * (stepdir * self.Fvp(stepdir)).sum(0, keepdim=True)
         lm = torch.sqrt(shs / self.max_kl)
-        fullstep = stepdir / lm[0]
-        neggdotstepdir = (-loss_grad * stepdir).sum(0, keepdim=True)
-        if use_cuda:
-            fullstep = fullstep.cuda()
-            neggdotstepdir = neggdotstepdir.cuda()
+        fullstep = turn_into_cuda(stepdir / lm[0])
+        neggdotstepdir = turn_into_cuda((-loss_grad * stepdir).sum(0, keepdim=True))
         prev_params = get_flat_params_from(self.net)
         success, new_params = self.linesearch(prev_params, fullstep, neggdotstepdir / lm[0])
         return new_params
@@ -139,26 +119,22 @@ class Adam_Updater:
         self.probtype = probtype
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_updater"])
         self.update_threshold = cfg["update_threshold"]
-        self.batch_size = cfg["batch_size"]
         self.kl_target = cfg["kl_target"]
 
-    def set_update(self, grads):
-        for k, l in zip(self.net.parameters(), grads):
-            ave_l = l / self.update_threshold
-            k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
-
-    def step(self):
-        self.optimizer.step()
-        self.net.zero_grad()
+    def step(self, grads=None):
+        if grads is None:
+            self.optimizer.step()
+            self.net.zero_grad()
+        else:
+            for k, l in zip(self.net.parameters(), grads):
+                ave_l = l / self.update_threshold
+                k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
 
     def derive_data(self, path):
-        observations = path["observation"]
-        actions = path["action"]
-        advantages = path["advantage"]
-        fixed_dist = path["prob"]
-
-        if use_cuda:
-            observations = observations.cuda()
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        advantages = turn_into_cuda(path["advantage"])
+        fixed_dist = turn_into_cuda(path["prob"])
 
         prob = self.net(observations).cpu()
         surr = -(self.probtype.loglikelihood(actions, prob) * advantages).mean()
@@ -168,23 +144,17 @@ class Adam_Updater:
         return losses
 
     def __call__(self, path):
-        observations_batch = path["observation"]
-        actions_batch = path["action"]
-        advantages_batch = path["advantage"]
-        fixed_dist_batch = path["prob"]
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        advantages = turn_into_cuda(path["advantage"])
+        fixed_dist = turn_into_cuda(path["prob"])
 
-        if use_cuda:
-            observations_batch = observations_batch.cuda()
-            fixed_dist_batch = fixed_dist_batch.cuda()
-            actions_batch = actions_batch.cuda()
-            advantages_batch = advantages_batch.cuda()
-
-        prob = self.net(observations_batch)
-        kl = self.probtype.kl(fixed_dist_batch, prob).mean().data[0]
+        prob = self.net(observations)
+        kl = self.probtype.kl(fixed_dist, prob).mean().data[0]
         if kl > 4 * self.kl_target:
             return None
 
-        surr = -(self.probtype.loglikelihood(actions_batch, prob) * advantages_batch).mean()
+        surr = -(self.probtype.loglikelihood(actions, prob) * advantages).mean()
         self.net.zero_grad()
         surr.backward()
         grads = [k.grad for k in self.net.parameters()]
@@ -202,32 +172,24 @@ class Ppo_adapted_Updater:
         self.kl_cutoff = cfg["kl_target"] * 2.0
         self.kl_cutoff_coeff = cfg["kl_cutoff_coeff"]
         self.kl_target = cfg["kl_target"]
-        self.batch_size = cfg["batch_size"]
         self.update_threshold = cfg["update_threshold"]
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_updater"])
 
-    def set_update(self, grads):
-        for k, l in zip(self.net.parameters(), grads):
-            ave_l = l / self.update_threshold
-            k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
-
-    def step(self):
-        self.optimizer.step()
-        self.net.zero_grad()
+    def step(self, grads=None):
+        if grads is None:
+            self.optimizer.step()
+            self.net.zero_grad()
+        else:
+            for k, l in zip(self.net.parameters(), grads):
+                ave_l = l / self.update_threshold
+                k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
 
     def derive_data(self, path):
-        observations = path["observation"]
-        actions = path["action"]
-        advantages = path["advantage"]
-        fixed_dist = path["prob"]
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        advantages = turn_into_cuda(path["advantage"])
+        fixed_dist = turn_into_cuda(path["prob"])
         fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        if use_cuda:
-            observations = observations.cuda()
-            fixed_dist = fixed_dist.cuda()
-            actions = actions.cuda()
-            fixed_prob = fixed_prob.cuda()
-            advantages = advantages.cuda()
 
         new_prob = self.net(observations)
         new_p = self.probtype.likelihood(actions, new_prob)
@@ -240,7 +202,7 @@ class Ppo_adapted_Updater:
 
         if kl.data[0] > 1.3 * self.kl_target and self.kl_beta < 35:
             self.kl_beta *= 1.5
-        elif kl.data[0] < 0.7 * self.kl_target and kl.data[0] > 1e-10 and self.kl_beta > 1/35:
+        elif kl.data[0] < 0.7 * self.kl_target and kl.data[0] > 1e-10 and self.kl_beta > 1 / 35:
             self.kl_beta /= 1.5
 
         losses = {"surr": surr.data[0], "surr_pen": surr_pen.data[0], "kl": kl.data[0],
@@ -250,18 +212,11 @@ class Ppo_adapted_Updater:
         return losses
 
     def __call__(self, path):
-        observations = path["observation"]
-        actions = path["action"]
-        advantages = path["advantage"]
-        fixed_dist = path["prob"]
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        advantages = turn_into_cuda(path["advantage"])
+        fixed_dist = turn_into_cuda(path["prob"])
         fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        if use_cuda:
-            observations = observations.cuda()
-            fixed_dist = fixed_dist.cuda()
-            actions = actions.cuda()
-            fixed_prob = fixed_prob.cuda()
-            advantages = advantages.cuda()
 
         new_prob = self.net(observations)
         new_p = self.probtype.likelihood(actions, new_prob)
@@ -283,33 +238,25 @@ class Ppo_clip_Updater:
         self.net = net
         self.probtype = probtype
         self.clip_epsilon = cfg["clip_epsilon"]
-        self.batch_size = cfg["batch_size"]
         self.kl_target = cfg["kl_target"]
         self.update_threshold = cfg["update_threshold"]
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
 
-    def set_update(self, grads):
-        for k, l in zip(self.net.parameters(), grads):
-            ave_l = l / self.update_threshold
-            k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
-
-    def step(self):
-        self.optimizer.step()
-        self.net.zero_grad()
+    def step(self, grads=None):
+        if grads is None:
+            self.optimizer.step()
+            self.net.zero_grad()
+        else:
+            for k, l in zip(self.net.parameters(), grads):
+                ave_l = l / self.update_threshold
+                k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
 
     def derive_data(self, path):
-        observations = path["observation"]
-        actions = path["action"]
-        advantages = path["advantage"]
-        fixed_dist = path["prob"]
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        advantages = turn_into_cuda(path["advantage"])
+        fixed_dist = turn_into_cuda(path["prob"])
         fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        if use_cuda:
-            observations = observations.cuda()
-            fixed_dist = fixed_dist.cuda()
-            actions = actions.cuda()
-            fixed_prob = fixed_prob.cuda()
-            advantages = advantages.cuda()
 
         new_prob = self.net(observations)
         new_p = self.probtype.likelihood(actions, new_prob)
@@ -325,18 +272,11 @@ class Ppo_clip_Updater:
         return losses
 
     def __call__(self, path):
-        observations = path["observation"]
-        actions = path["action"]
-        advantages = path["advantage"]
-        fixed_dist = path["prob"]
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        advantages = turn_into_cuda(path["advantage"])
+        fixed_dist = turn_into_cuda(path["prob"])
         fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        if use_cuda:
-            observations = observations.cuda()
-            fixed_dist = fixed_dist.cuda()
-            actions = actions.cuda()
-            fixed_prob = fixed_prob.cuda()
-            advantages = advantages.cuda()
 
         new_prob = self.net(observations)
         kl = self.probtype.kl(fixed_dist, new_prob).mean()
@@ -363,24 +303,19 @@ class Adam_Optimizer:
         self.net = net
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_optimizer"])
         self.update_threshold = cfg["update_threshold"]
-        self.batch_size = cfg["batch_size"]
 
-    def set_update(self, grads):
-        for k, l in zip(self.net.parameters(), grads):
-            ave_l = l / self.update_threshold
-            k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
-
-    def step(self):
-        self.optimizer.step()
-        self.net.zero_grad()
+    def step(self, grads=None):
+        if grads is None:
+            self.optimizer.step()
+            self.net.zero_grad()
+        else:
+            for k, l in zip(self.net.parameters(), grads):
+                ave_l = l / self.update_threshold
+                k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
 
     def derive_data(self, path):
-        observations = path["observation"]
-        y_targ = path["return"]
-
-        if use_cuda:
-            observations = observations.cuda()
-            y_targ = y_targ.cuda()
+        observations = turn_into_cuda(path["observation"])
+        y_targ = turn_into_cuda(path["return"])
 
         y_pred = self.net(observations)
         td = y_pred - y_targ
@@ -389,12 +324,8 @@ class Adam_Optimizer:
         return {"loss": loss.data[0], "explainedvar": exp_var}
 
     def __call__(self, path):
-        observations = path["observation"]
-        y_targ = path["return"]
-
-        if use_cuda:
-            observations = observations.cuda()
-            y_targ = y_targ.cuda()
+        observations = turn_into_cuda(path["observation"])
+        y_targ = turn_into_cuda(path["return"])
 
         td = self.net(observations) - y_targ
         loss = td.pow(2).mean()
