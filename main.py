@@ -35,7 +35,7 @@ def create_config():
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
 
     # Asynchronous Setting
-    parser.add_argument('--timesteps_per_batch_worker', type=int, default=4000,
+    parser.add_argument('--timesteps_per_batch_worker', type=int, default=20000,
                         help='total number of steps between two updates')
     parser.add_argument("--n_worker", type=int, default=1, help="total number of workers")
     parser.add_argument("--update_threshold", type=int, default=1,
