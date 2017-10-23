@@ -14,7 +14,7 @@ def create_config():
     parser.add_argument('--timesteps_per_batch', type=int, default=25000, help='total number of steps between two updates')
     parser.add_argument("--n_worker", type=int, default=10, help="total number of workers")
     parser.add_argument("--update_threshold", type=int, default=10, help="update after how many workers have finished sampling")
-    parser.add_argument("running_stat", type=bool, default=False, help=""),
+    parser.add_argument("--running_stat", type=bool, default=False, help=""),
 
     return parser.parse_args().__dict__
 
