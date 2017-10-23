@@ -34,8 +34,11 @@ def get_layer(des, inshp):
         return nn.Tanh(), inshp
 
 
-def mujoco_layer_designer(ob_space, ac_space, cfg):
-    assert len(ob_space.shape)==1
+def mujoco_layer_designer(cfg):
+    ob_space = cfg["observation_space"]
+    ac_space = cfg["action_space"]
+    assert len(ob_space.shape) == 1
+
     hid1_size = ac_space.shape[0] * 10
     hid3_size = ob_space.shape[0] * 10
     hid2_size = int(np.sqrt(hid1_size*hid3_size))
@@ -47,6 +50,7 @@ def mujoco_layer_designer(ob_space, ac_space, cfg):
         {'kind': 'dense', 'units': hid3_size},
     ]
     cfg["net_topology_pol_vec"] = net_topology_pol_vec
+    cfg["lr_upadter"] = 9e-4 / np.sqrt(hid2_size)
 
     hid1_size = ac_space.shape[0] * 10
     hid3_size = 5
@@ -59,3 +63,6 @@ def mujoco_layer_designer(ob_space, ac_space, cfg):
         {'kind': 'dense', 'units': hid3_size},
     ]
     cfg["net_topology_v_vec"] = net_topology_v_vec
+    cfg["lr_optimizer"] = 1e-2 / np.sqrt(hid2_size)
+
+    return cfg

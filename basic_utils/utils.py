@@ -55,43 +55,51 @@ def pathlength(path):
     return len(path["action"])
 
 
-def add_episode_stats(stats, paths):
-    reward_key = "reward_raw" if "reward_raw" in paths[0] else "reward"
-    episoderewards = np.array([np.sum(path[reward_key]) for path in paths])
-    pathlengths = np.array([pathlength(path) for path in paths])
+def add_episode_stats(stats, rewards):
+    episoderewards = np.array([np.sum(r) for r in rewards])
+    pathlengths = np.array([r.shape[0] for r in rewards])
 
     stats["NumEpBatch"] = len(episoderewards)
     stats["EpRewMean"] = episoderewards.mean()
-    stats["EpRewSEM"] = episoderewards.std() / np.sqrt(len(paths))
+    stats["EpRewSEM"] = episoderewards.std() / np.sqrt(len(rewards))
     stats["EpRewMax"] = episoderewards.max()
+    stats["EpRewMin"] = episoderewards.min()
     stats["EpLenMean"] = pathlengths.mean()
     stats["EpLenMax"] = pathlengths.max()
+    stats["EpLenMin"] = pathlengths.min()
     stats["RewPerStep"] = episoderewards.sum() / pathlengths.sum()
 
 
 def merge_episode_stats(statslist):
     total_stats = OrderedDict()
-    num = len(statslist)
+    total_info_before = []
+    total_info_after = []
+    rewards = []
+
+    for i in range(len(statslist[0][0])):
+        total_info_before.append((statslist[0][0][i][0], merge_dict([stats[0][i][1] for stats in statslist])))
+        total_info_after.append((statslist[0][1][i][0], merge_dict([stats[1][i][1] for stats in statslist])))
     for stats in statslist:
-        for k in stats:
-            if k in total_stats:
-                if k == "NumEpBatch":
-                    total_stats[k] += stats[k]
-                elif k == "EpRewMax" or k == "EpLenMax":
-                    total_stats[k] = max(total_stats[k], stats[k])
-                else:
-                    total_stats[k] += stats[k] / num
-            else:
-                if k == "NumEpBatch" or k == "EpRewMax" or k == "EpLenMax":
-                    total_stats[k] = stats[k]
-                else:
-                    total_stats[k] = stats[k] / num
+        rewards += stats[2]
+    add_episode_stats(total_stats, rewards)
+    for k in total_info_before:
+        add_fixed_stats(total_stats, k[0], 'before', k[1])
+    for k in total_info_after:
+        add_fixed_stats(total_stats, k[0], 'after', k[1])
     return total_stats
 
 
 def add_fixed_stats(stats, prefix, suffix, d):
     for k in d:
         stats[prefix + "_" + k + "_" + suffix] = d[k]
+
+
+def merge_dict(dictlist):
+    merged_dict = OrderedDict()
+    keys = dictlist[0].keys()
+    for k in keys:
+        merged_dict[k] = np.mean([d[k] for d in dictlist])
+    return merged_dict
 
 
 use_cuda = torch.cuda.is_available()
@@ -104,19 +112,7 @@ def Variable(tensor, *args, **kwargs):
         return torch.autograd.Variable(tensor, *args, **kwargs)
 
 
-def Tensor(nparray):
-    if use_cuda:
-        return torch.from_numpy(nparray).float().cuda()
-    else:
-        return torch.from_numpy(nparray).float()
-
-
 def np_to_var(nparray):
-    assert isinstance(nparray, np.ndarray)
-    return Variable(Tensor(nparray))
-
-
-def np_to_var_cpu(nparray):
     assert isinstance(nparray, np.ndarray)
     return torch.autograd.Variable(torch.from_numpy(nparray).float())
 
@@ -125,7 +121,7 @@ def pre_process_path(paths, keys):
     new_path = defaultdict(list)
     for k in keys:
         new_path[k] = np.concatenate([path[k] for path in paths])
-        new_path[k] = np_to_var_cpu(np.array(new_path[k]))
+        new_path[k] = np_to_var(np.array(new_path[k]))
         if len(new_path[k].size()) == 1:
             new_path[k] = new_path[k].view(-1, 1)
     return new_path

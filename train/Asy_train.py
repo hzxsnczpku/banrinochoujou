@@ -5,6 +5,7 @@ from torch.multiprocessing import Queue
 
 from models.agents import *
 from basic_utils.env_wrapper import Env_wrapper
+from basic_utils.layers import mujoco_layer_designer
 
 
 class Master:
@@ -12,6 +13,8 @@ class Master:
         self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS, cfg)
         self.callback = Callback()
         self.cfg = get_env_info(self.cfg)
+        if self.cfg["use_mujoco_setting"]:
+            self.cfg = mujoco_layer_designer(self.cfg)
         self.agent, self.cfg = get_agent(self.cfg)
         if self.cfg["load_model"]:
             self.agent.load_model("./save_model/" + self.cfg["ENV_NAME"] + "_" + self.cfg["agent"])
@@ -94,19 +97,11 @@ def run(cfg, require_q, data_q, recv_q, process_id=0):
             for batch in batches:
                 require_q.put((process_id, agent.update(batch)))
                 agent.set_params(recv_q.get())
-            for batch in batches:
-                require_q.put((process_id, agent.update(batch, pol=False)))
-                agent.set_params(recv_q.get())
             require_q.put((process_id, None))
 
             info_after = agent.get_update_info(batches[-1])
-            stats = OrderedDict()
-            add_episode_stats(stats, paths)
-            for u in info_before:
-                add_fixed_stats(stats, u[0], "before", u[1])
-            for u in info_after:
-                add_fixed_stats(stats, u[0], "after", u[1])
-            data_q.put(stats)
+            rewards = [d["reward_raw"] for d in paths]
+            data_q.put((info_before, info_after, rewards))
             timesteps_sofar = 0
             paths = []
 

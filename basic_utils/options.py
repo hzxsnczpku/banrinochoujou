@@ -74,7 +74,7 @@ ENV_OPTIONS = [
     ("consec_frames", int, 4, ""),
     ("image_size", tuple, (84, 84), ""),
     ("running_stat", bool, False, ""),
-    ("alpha", float, 1/50000, "")
+    ("alpha", float, 1 / 50000, "")
 ]
 
 TRPO_OPTIONS = [
@@ -87,11 +87,15 @@ TRPO_OPTIONS = [
 
 PPO_OPTIONS = [
     ("kl_target", float, 0.003, ""),
-    ("batch_size", int, 1000, ""),
+    ("batch_size", int, 200, ""),
     ("kl_cutoff_coeff", float, 50.0, ""),
     ("clip_epsilon", float, 0.2, ""),
     ("lr_optimizer", float, 1e-3, "learning rate"),
-    ("lr_updater", float, 9e-4, "learning rate")
+    ("lr_updater", float, 9e-4, "learning rate"),
+    ("beta_upper", float, 35.0, ""),
+    ("beta_lower", float, 1 / 35.0, ""),
+    ("beta_adj_thres_u", float, 2.0, ""),
+    ("beta_adj_thres_l", float, 0.5, "")
 ]
 
 A3C_OPTIONS = [
@@ -114,3 +118,9 @@ Q_OPTIONS = [
     ("update_target_every", int, 10000, ""),
     ("lr_optimizer", float, 1e-3, "learning rate"),
 ]
+
+MOJOCO_ENVS = ["InvertedPendulum-v1", "InvertedDoublePendulum-v1", "Reacher-v1", "HalfCheetah-v1", "Swimmer-v1",
+               "Hopper-v1", "Walker2d-v1", "Ant-v1", "Humanoid-v1", "HumanoidStandup-v1"]
+
+CLASSICAL_CONTROL = ["CartPole-v0", "CartPole-v1", "Acrobot-v1", "MountainCar-v0", "MountainCarContinuous-v0",
+                     "Pendulum-v0"]

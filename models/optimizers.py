@@ -173,6 +173,7 @@ class Ppo_adapted_Updater:
         self.kl_target = cfg["kl_target"]
         self.update_threshold = cfg["update_threshold"]
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_updater"])
+        self.cfg = cfg
 
     def step(self, grads=None, update=False):
         if update:
@@ -199,9 +200,9 @@ class Ppo_adapted_Updater:
         if (kl > self.kl_cutoff).data[0]:
             surr_pen += self.kl_cutoff_coeff * (kl - self.kl_cutoff).pow(2)
 
-        if kl.data[0] > 1.3 * self.kl_target and self.kl_beta < 35:
+        if kl.data[0] > self.cfg["beta_adj_thres_u"] * self.kl_target and self.kl_beta < self.cfg["beta_upper"]:
             self.kl_beta *= 1.5
-        elif kl.data[0] < 0.7 * self.kl_target and kl.data[0] > 1e-10 and self.kl_beta > 1 / 35:
+        elif kl.data[0] < self.cfg["beta_adj_thres_l"] * self.kl_target and kl.data[0] > 1e-10 and self.kl_beta > self.cfg["beta_lower"]:
             self.kl_beta /= 1.5
 
         losses = {"surr": surr.data[0], "surr_pen": surr_pen.data[0], "kl": kl.data[0],
