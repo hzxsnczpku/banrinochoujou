@@ -61,7 +61,6 @@ MLP_OPTIONS = [
 ]
 
 PG_OPTIONS = [
-    ("timestep_limit", int, 0, "maximum length of trajectories"),
     ("timesteps_per_batch", int, 20000, ""),
     ("gamma", float, 0.995, "discount"),
     ("lam", float, 0.98, "lambda parameter from generalized advantage estimation"),
@@ -75,7 +74,8 @@ ENV_OPTIONS = [
     ("ENV_NAME", str, "Swimmer-v1", ""),
     ("consec_frames", int, 4, ""),
     ("image_size", tuple, (84, 84), ""),
-    ("running_stat", bool, False, "")
+    ("running_stat", bool, False, ""),
+    ("alpha", float, 1/50000, "")
 ]
 
 TRPO_OPTIONS = [

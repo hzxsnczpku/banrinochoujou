@@ -151,8 +151,6 @@ def get_env_info(cfg):
     env = Env_wrapper(cfg)
     cfg["observation_space"] = env.observation_space
     cfg["action_space"] = env.action_space
-    if cfg["timestep_limit"] == 0:
-        cfg["timestep_limit"] = env.timestep_limit
     env.close()
     return cfg
 

@@ -18,7 +18,6 @@ class Env_wrapper:
         else:
             self.observation_space = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames,), low=0, high=1)
         self.action_space = self.env.action_space
-        self.timestep_limit = self.env.spec.timestep_limit
 
         self.running_stat = cfg["running_stat"]
         self.ob_running_mean = None
@@ -26,7 +25,7 @@ class Env_wrapper:
         self.rew_running_mean = None
         self.rew_running_var = None
         self.rew_scale = 1 - cfg["gamma"]
-        self.alpha = 1/50000
+        self.alpha = cfg["alpha"]
 
     def _process(self, ob):
         processed_observe = resize(rgb2gray(ob), self.image_size, mode='constant')

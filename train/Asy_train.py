@@ -70,7 +70,8 @@ def run(cfg, require_q, data_q, recv_q, process_id=0):
     while True:
         ob = env.reset()
         data = defaultdict(list)
-        for _ in range(cfg["timestep_limit"]):
+        done = False
+        while not done:
             data["observation"].append(ob)
             action, info = agent.act(ob.reshape((1,) + ob.shape))
             data["action"].append(action[0])
@@ -82,8 +83,7 @@ def run(cfg, require_q, data_q, recv_q, process_id=0):
             data["reward"].append(rew)
             data["not_done"].append(1 - done)
             data["next_observation"].append(ob)
-            if done:
-                break
+
         data = {k: np.array(data[k]) for k in data}
         timesteps_sofar += pathlength(data)
         paths.append(data)
