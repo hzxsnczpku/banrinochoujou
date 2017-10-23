@@ -61,7 +61,6 @@ MLP_OPTIONS = [
 ]
 
 PG_OPTIONS = [
-    ("timesteps_per_batch", int, 20000, ""),
     ("gamma", float, 0.995, "discount"),
     ("lam", float, 0.98, "lambda parameter from generalized advantage estimation"),
     ("load_model", bool, False, ""),

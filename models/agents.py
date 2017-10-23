@@ -61,9 +61,9 @@ class Policy_Based_Agent(BasicAgent):
     def get_update_info(self, batch):
         return ("pol", self.policy.updater.derive_data(batch)), ("v", self.baseline.optimizer.derive_data(batch))
 
-    def update(self, batch):
-        pol_stats = self.policy.update(batch)
-        vf_stats = self.baseline.fit(batch)
+    def update(self, batch, pol=True, vf=True):
+        pol_stats = self.policy.update(batch) if pol else None
+        vf_stats = self.baseline.fit(batch) if vf else None
         return pol_stats, vf_stats
 
     def save_model(self, name):

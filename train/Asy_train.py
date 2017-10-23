@@ -12,7 +12,6 @@ class Master:
         self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS, cfg)
         self.callback = Callback()
         self.cfg = get_env_info(self.cfg)
-        self.cfg["timesteps_per_batch_worker"] = self.cfg["timesteps_per_batch"] / self.cfg["update_threshold"]
         self.agent, self.cfg = get_agent(self.cfg)
         if self.cfg["load_model"]:
             self.agent.load_model("./save_model/" + self.cfg["ENV_NAME"] + "_" + self.cfg["agent"])
@@ -94,6 +93,9 @@ def run(cfg, require_q, data_q, recv_q, process_id=0):
 
             for batch in batches:
                 require_q.put((process_id, agent.update(batch)))
+                agent.set_params(recv_q.get())
+            for batch in batches:
+                require_q.put((process_id, agent.update(batch, pol=False)))
                 agent.set_params(recv_q.get())
             require_q.put((process_id, None))
 
