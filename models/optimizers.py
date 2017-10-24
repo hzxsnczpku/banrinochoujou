@@ -281,8 +281,8 @@ class Adam_Optimizer:
         self.replay_buffer_y = None
 
     def __call__(self, path):
-        observations = path["observation"]
-        y_targ = path["return"]
+        observations = turn_into_cuda(path["observation"])
+        y_targ = turn_into_cuda(path["return"])
         num_batches = max(observations.size()[0] // 256, 1)
         batch_size = observations.size()[0] // num_batches
 

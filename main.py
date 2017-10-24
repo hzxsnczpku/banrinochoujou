@@ -31,14 +31,14 @@ def create_config():
     parser.add_argument("--running_stat", type=bool, default=True,
                         help="whether to normalize the frames and rewards or not")
     parser.add_argument("--alpha", type=float, default=1 / 50000, help="factor of soft updating in running_stat mode")
-    parser.add_argument("--use_mujoco_setting", type=bool, default=False,
+    parser.add_argument("--use_mujoco_setting", type=bool, default=True,
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
 
     # Asynchronous Setting
-    parser.add_argument('--timesteps_per_batch_worker', type=int, default=5000,
+    parser.add_argument('--timesteps_per_batch_worker', type=int, default=1000,
                         help='total number of steps between two updates')
-    parser.add_argument("--n_worker", type=int, default=2, help="total number of workers")
-    parser.add_argument("--update_threshold", type=int, default=2,
+    parser.add_argument("--n_worker", type=int, default=5, help="total number of workers")
+    parser.add_argument("--update_threshold", type=int, default=5,
                         help="update after how many workers have finished sampling")
 
     # TRPO Agent Setting
