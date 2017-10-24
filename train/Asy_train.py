@@ -43,8 +43,8 @@ class Master:
                 req_sofar += 1
 
             stats = OrderedDict()
-            add_episode_stats(stats, paths)
-            for u in self.agent.update(paths):
+            add_episode_stats(stats, total_paths)
+            for u in self.agent.update(total_paths):
                 add_prefixed_stats(stats, u[0], u[1])
             stats["TimeElapsed"] = time.time() - tstart
             counter = self.callback(stats)
