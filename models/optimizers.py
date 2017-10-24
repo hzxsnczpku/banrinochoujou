@@ -178,18 +178,23 @@ class Ppo_adapted_Updater:
         actions = turn_into_cuda(path["action"])
         advantages = turn_into_cuda(path["advantage"])
 
+        loss_names = ['loss', 'surr', 'kl', 'entropy', 'beta']
         old_prob = self.net(observes).detach()
 
         for e in range(self.epochs):
             prob = self.net(observes)
             logp = self.probtype.loglikelihood(actions, prob)
             logp_old = self.probtype.loglikelihood(actions, old_prob)
-            print(self.probtype.kl(old_prob, prob))
             kl = self.probtype.kl(old_prob, prob).mean()
-            loss = -(advantages * (logp - logp_old).exp()).mean() + self.beta * kl
+            surr = -(advantages * (logp - logp_old).exp()).mean()
+            loss = surr + self.beta * kl
 
             if kl.data[0] - 2.0 * self.kl_targ > 0:
                 loss += self.eta * (kl - 2.0 * self.kl_targ).pow(2)
+
+            if e == 0:
+                entropy = self.probtype.entropy(prob).mean()
+                info_old = [loss, surr, kl, entropy, self.beta]
 
             self.net.zero_grad()
             loss.backward()
@@ -204,6 +209,8 @@ class Ppo_adapted_Updater:
             self.beta = 1.5 * self.beta  # max clip beta
         elif kl.data[0] < self.kl_targ / 2 and self.beta > 1 / 35:
             self.beta = self.beta / 1.5  # min clip beta
+
+            info_new = [loss, surr, kl, entropy, self.beta]
 
         return {'PolicyLoss': loss.data[0], 'PolicyEntropy': entropy.data[0], 'KL': kl.data[0], 'Beta': self.beta}
 

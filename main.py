@@ -26,7 +26,7 @@ def create_config():
     parser.add_argument("--lr_updater", type=float, default=9e-4, help="learning rate of the policy")
 
     # Env Setting
-    parser.add_argument("--consec_frames", type=int, default=4, help="how many frames to concatenete in a row")
+    parser.add_argument("--consec_frames", type=int, default=1, help="how many frames to concatenete in a row")
     parser.add_argument("--image_size", type=tuple, default=(84, 84), help="the size of processed frames")
     parser.add_argument("--running_stat", type=bool, default=True,
                         help="whether to normalize the frames and rewards or not")
