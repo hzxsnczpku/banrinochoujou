@@ -12,7 +12,7 @@ def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='CartPole-v1', help='the name of the environment')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Swimmer-v1', help='the name of the environment')
     parser.add_argument('--agent', type=str, default='Ppo_adapted_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether load model or not")
     parser.add_argument("--save_every", type=int, default=None, help="number of steps between two saving operations")
@@ -37,8 +37,8 @@ def create_config():
     # Asynchronous Setting
     parser.add_argument('--timesteps_per_batch_worker', type=int, default=5000,
                         help='total number of steps between two updates')
-    parser.add_argument("--n_worker", type=int, default=1, help="total number of workers")
-    parser.add_argument("--update_threshold", type=int, default=1,
+    parser.add_argument("--n_worker", type=int, default=2, help="total number of workers")
+    parser.add_argument("--update_threshold", type=int, default=2,
                         help="update after how many workers have finished sampling")
 
     # TRPO Agent Setting

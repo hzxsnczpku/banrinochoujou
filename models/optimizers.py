@@ -1,7 +1,6 @@
 from torch import optim
 
 from basic_utils.utils import *
-from sklearn.utils import shuffle
 
 
 # ================================================================

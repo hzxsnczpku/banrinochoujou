@@ -1,5 +1,4 @@
 import time
-
 from torch import multiprocessing as mp
 from torch.multiprocessing import Queue
 
@@ -20,8 +19,7 @@ class Master:
             self.agent.load_model("./save_model/" + self.cfg["ENV_NAME"] + "_" + self.cfg["agent"])
 
     def train(self):
-        if use_cuda:
-            mp.set_start_method('spawn')
+        mp.set_start_method('spawn')
         tstart = time.time()
         require_q = Queue()
         workers = []
