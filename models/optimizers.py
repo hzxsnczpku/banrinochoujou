@@ -283,6 +283,8 @@ class Adam_Optimizer:
     def __call__(self, path):
         observations = turn_into_cuda(path["observation"])
         y_targ = turn_into_cuda(path["return"])
+        explained_var_before = 1 - torch.var(y_targ - self.net(observations))/torch.var(y_targ)
+
         num_batches = max(observations.size()[0] // 256, 1)
         batch_size = observations.size()[0] // num_batches
 
@@ -308,7 +310,8 @@ class Adam_Optimizer:
                 loss.backward()
                 self.optimizer.step()
 
-        return {'123': 0}
+        explained_var_after = 1 - torch.var(y_targ - self.net(observations)) / torch.var(y_targ)
+        return {'e_var_before': explained_var_before.data[0], 'e_var_after': explained_var_after.data[0]}
 
 
 # ================================================================
