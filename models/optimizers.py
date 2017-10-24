@@ -1,6 +1,7 @@
 from torch import optim
 
 from basic_utils.utils import *
+from sklearn.utils import shuffle
 
 
 # ================================================================
@@ -167,70 +168,44 @@ class Ppo_adapted_Updater:
     def __init__(self, net, probtype, cfg):
         self.net = net
         self.probtype = probtype
-        self.kl_beta = 1.0
-        self.kl_cutoff = cfg["kl_target"] * 2.0
-        self.kl_cutoff_coeff = cfg["kl_cutoff_coeff"]
-        self.kl_target = cfg["kl_target"]
-        self.update_threshold = cfg["update_threshold"]
-        self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_updater"])
-        self.cfg = cfg
-
-    def step(self, grads=None, update=False):
-        if update:
-            self.optimizer.step()
-            self.net.zero_grad()
-        elif grads is not None:
-            for k, l in zip(self.net.parameters(), grads):
-                ave_l = l / self.update_threshold
-                k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
-
-    def derive_data(self, path):
-        observations = turn_into_cuda(path["observation"])
-        actions = turn_into_cuda(path["action"])
-        advantages = turn_into_cuda(path["advantage"])
-        fixed_dist = turn_into_cuda(path["prob"])
-        fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
-        new_prob = self.net(observations)
-        new_p = self.probtype.likelihood(actions, new_prob)
-        prob_ratio = new_p / fixed_prob
-        surr = -torch.mean(prob_ratio * advantages)
-        kl = self.probtype.kl(fixed_dist, new_prob).mean()
-        surr_pen = surr + self.kl_beta * kl
-        if (kl > self.kl_cutoff).data[0]:
-            surr_pen += self.kl_cutoff_coeff * (kl - self.kl_cutoff).pow(2)
-
-        if kl.data[0] > self.cfg["beta_adj_thres_u"] * self.kl_target and self.kl_beta < self.cfg["beta_upper"]:
-            self.kl_beta *= 1.5
-        elif kl.data[0] < self.cfg["beta_adj_thres_l"] * self.kl_target and kl.data[0] > 1e-10 and self.kl_beta > self.cfg["beta_lower"]:
-            self.kl_beta /= 1.5
-
-        losses = {"surr": surr.data[0], "surr_pen": surr_pen.data[0], "kl": kl.data[0],
-                  "ent": self.probtype.entropy(new_prob).data.mean(),
-                  "kl_beta": self.kl_beta}
-
-        return losses
+        self.beta = 1.0  # dynamically adjusted D_KL loss multiplier
+        self.eta = 50  # multiplier for D_KL-kl_targ hinge-squared loss
+        self.kl_targ = cfg["kl_target"]
+        self.epochs = 20
+        self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
 
     def __call__(self, path):
-        observations = turn_into_cuda(path["observation"])
+        observes = turn_into_cuda(path["observation"])
         actions = turn_into_cuda(path["action"])
         advantages = turn_into_cuda(path["advantage"])
-        fixed_dist = turn_into_cuda(path["prob"])
-        fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
 
-        new_prob = self.net(observations)
-        new_p = self.probtype.likelihood(actions, new_prob)
-        prob_ratio = new_p / fixed_prob
-        surr = -torch.mean(prob_ratio * advantages)
-        kl = self.probtype.kl(fixed_dist, new_prob).mean()
-        surr_pen = surr + self.kl_beta * kl
-        if (kl > self.kl_cutoff).data[0]:
-            surr_pen += self.kl_cutoff_coeff * (kl - self.kl_cutoff).pow(2)
+        old_prob = self.net(observes).detach()
 
-        self.net.zero_grad()
-        surr_pen.backward()
-        grads = [k.grad for k in self.net.parameters()]
-        return grads
+        for e in range(self.epochs):
+            prob = self.net(observes)
+            logp = self.probtype.loglikelihood(actions, prob)
+            logp_old = self.probtype.loglikelihood(actions, old_prob)
+            kl = self.probtype.kl(old_prob, prob).mean()
+            loss = -(advantages * (logp - logp_old).exp()).mean() + self.beta * kl
+
+            if kl.data[0] - 2.0 * self.kl_targ > 0:
+                loss += self.eta * (kl - 2.0 * self.kl_targ).pow(2)
+
+            self.net.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
+            prob = self.net(observes)
+            kl = self.probtype.kl(old_prob, prob).mean()
+            entropy = self.probtype.entropy(prob).mean()
+            if kl.data[0] > self.kl_targ * 4:  # early stopping if D_KL diverges badly
+                break
+        if kl.data[0] > self.kl_targ * 2 and self.beta < 35:  # servo beta to reach D_KL target
+            self.beta = 1.5 * self.beta  # max clip beta
+        elif kl.data[0] < self.kl_targ / 2 and self.beta > 1 / 35:
+            self.beta = self.beta / 1.5  # min clip beta
+
+        return {'PolicyLoss': loss.data[0], 'PolicyEntropy': entropy.data[0], 'KL': kl.data[0], 'Beta': self.beta}
 
 
 class Ppo_clip_Updater:
@@ -301,39 +276,40 @@ class Ppo_clip_Updater:
 class Adam_Optimizer:
     def __init__(self, net, cfg):
         self.net = net
-        self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_optimizer"])
-        self.update_threshold = cfg["update_threshold"]
-
-    def step(self, grads=None, update=False):
-        if update:
-            self.optimizer.step()
-            self.net.zero_grad()
-        elif grads is not None:
-            for k, l in zip(self.net.parameters(), grads):
-                ave_l = l / self.update_threshold
-                k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
-
-    def derive_data(self, path):
-        observations = turn_into_cuda(path["observation"])
-        y_targ = turn_into_cuda(path["return"])
-
-        y_pred = self.net(observations)
-        td = y_pred - y_targ
-        loss = td.pow(2).mean()
-        exp_var = 1 - np.var(td.data.cpu().numpy()) / np.var(y_targ.data.cpu().numpy())
-        return {"loss": loss.data[0], "explainedvar": exp_var}
+        self.optimizer = optim.Adam(self.net.parameters(), cfg['lr_optimizer'])
+        self.epochs = 10
+        self.replay_buffer_x = None
+        self.replay_buffer_y = None
 
     def __call__(self, path):
-        observations = turn_into_cuda(path["observation"])
-        y_targ = turn_into_cuda(path["return"])
+        observations = path["observation"]
+        y_targ = path["return"]
+        num_batches = max(observations.size()[0] // 256, 1)
+        batch_size = observations.size()[0] // num_batches
 
-        td = self.net(observations) - y_targ
-        loss = td.pow(2).mean()
+        if self.replay_buffer_x is None:
+            x_train, y_train = observations, y_targ
+        else:
+            x_train = torch.cat([observations, self.replay_buffer_x], dim=0)
+            y_train = torch.cat([y_targ, self.replay_buffer_y], dim=0)
+        self.replay_buffer_x = observations
+        self.replay_buffer_y = y_targ
 
-        self.net.zero_grad()
-        loss.backward()
-        grads = [k.grad for k in self.net.parameters()]
-        return grads
+        for e in range(self.epochs):
+            sortinds = np.random.permutation(observations.size()[0])
+            sortinds = torch.from_numpy(sortinds).long()
+            for j in range(num_batches):
+                start = j * batch_size
+                end = (j + 1) * batch_size
+                obs_ph = x_train.index_select(0, sortinds[start:end])
+                val_ph = y_train.index_select(0, sortinds[start:end])
+                out = self.net(obs_ph)
+                loss = (out - val_ph).pow(2).mean()
+                self.net.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+
+        return {'123':0}
 
 
 # ================================================================

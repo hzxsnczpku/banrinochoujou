@@ -36,35 +36,14 @@ class Policy_Based_Agent(BasicAgent):
     def act(self, ob_no):
         return self.policy.act(ob_no, stochastic=self.stochastic)
 
-    def preprocess_batch(self, paths):
+    def update(self, paths):
         compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
         keys = ["observation", "action", "advantage", "prob", "return"]
         processed_path = pre_process_path(paths, keys)
-        total_num = processed_path[keys[0]].size()[0]
-        batch_size = self.cfg["batch_size"]
-
-        sortinds = np.random.permutation(total_num)
-        sortinds = torch.from_numpy(sortinds).long()
-        batches = []
-        for istart in range(0, total_num, batch_size):
-            batch = dict()
-            for k in keys:
-                batch[k] = processed_path[k].index_select(0, sortinds[istart:istart + batch_size])
-            batches.append(batch)
-
-        return batches
-
-    def step(self, datas=(None, None), update=False):
-        self.policy.updater.step(datas[0], update)
-        self.baseline.optimizer.step(datas[1], update)
-
-    def get_update_info(self, batch):
-        return ("pol", self.policy.updater.derive_data(batch)), ("v", self.baseline.optimizer.derive_data(batch))
-
-    def update(self, batch, pol=True, vf=True):
-        pol_stats = self.policy.update(batch) if pol else None
-        vf_stats = self.baseline.fit(batch) if vf else None
-        return pol_stats, vf_stats
+        pol_stats = self.policy.update(processed_path)
+        vf_stats = self.baseline.fit(processed_path)
+        a = [("v", vf_stats), ("pol", pol_stats)]
+        return a
 
     def save_model(self, name):
         self.policy.save_model(name)

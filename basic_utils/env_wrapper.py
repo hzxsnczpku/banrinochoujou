@@ -43,18 +43,6 @@ class Env_wrapper:
 
         return (ob - self.ob_running_mean)/np.sqrt(self.ob_running_var)
 
-    def _normalize_rew(self, r):
-        if not self.running_stat:
-            return r
-        if self.rew_running_mean is None:
-            self.rew_running_mean = r
-            self.rew_running_var = 1
-        else:
-            self.rew_running_var = (1 - self.alpha) * self.rew_running_var + self.alpha * np.square(r - self.rew_running_mean)
-            self.rew_running_mean = (1 - self.alpha) * self.rew_running_mean + self.alpha * r
-
-        return self.rew_scale * (r - self.rew_running_mean) / np.sqrt(self.rew_running_var)
-
     def reset(self):
         ob = self.env.reset()
         if self.ob_len > 1:
@@ -72,13 +60,12 @@ class Env_wrapper:
         if self.ob_len > 1:
             ob = self._process(ob)
         ob = self._normalize_ob(ob)
-        r_normalized = self._normalize_rew(r)
         self.states.append(ob)
         history = np.concatenate(self.states, axis=-1)
         if self.ob_len > 1:
             history = np.transpose(history, (2, 0, 1))
         info["reward_raw"] = r
-        return history, r_normalized, done, info
+        return history, r, done, info
 
     def close(self):
         self.env.close()

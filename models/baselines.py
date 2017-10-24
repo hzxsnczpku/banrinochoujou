@@ -10,8 +10,8 @@ class ValueFunction:
         observations = turn_into_cuda(np_to_var(np.array(ob)))
         return self.net(observations).data.cpu().numpy()
 
-    def fit(self, batch):
-        return self.optimizer(batch)
+    def fit(self, path):
+        return self.optimizer(path)
 
     def save_model(self, name):
         torch.save(self.net, name + "_baseline.pkl")

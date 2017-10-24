@@ -4,15 +4,11 @@ import numpy as np
 import torch
 from tabulate import tabulate
 from basic_utils.env_wrapper import Env_wrapper
+import scipy.signal
 
 
-def discount(x, gamma, last=0):
-    assert x.ndim >= 1
-    y = np.zeros_like(x)
-    y[-1] = x[-1] + gamma * last
-    for i in range(len(x) - 2, -1, -1):
-        y[i] = x[i] + gamma * y[i + 1]
-    return y
+def discount(x, gamma):
+    return scipy.signal.lfilter([1.0], [1.0, -gamma], x[::-1])[::-1]
 
 
 def update_default_config(tuples, usercfg):
@@ -23,16 +19,14 @@ def update_default_config(tuples, usercfg):
 
 
 def compute_advantage(vf, paths, gamma, lam):
-    # Compute return, baseline, advantage
     for path in paths:
-        last = 0 if path["not_done"][-1] == 0 else vf.predict(path["next_observation"][-1])
-        path["return"] = discount(path["reward"], gamma, last)
-        b = path["baseline"] = vf.predict(path["observation"])
-        b1 = np.append(b, last)
-        deltas = path["reward"] + gamma * b1[1:] - b1[:-1]
-        path["advantage"] = discount(deltas, gamma * lam)
+        rewards = path['reward'] * (1 - gamma) if gamma<0.999 else path['reward']
+        path['return'] = discount(rewards, gamma)
+        values = vf.predict(path["observation"])
+        tds = rewards - values + np.append(values[1:] * gamma, 0)
+        advantages = discount(tds, gamma * lam)
+        path['advantage'] = advantages
     alladv = np.concatenate([path["advantage"] for path in paths])
-    # Standardize advantage
     std = alladv.std()
     mean = alladv.mean()
     for path in paths:
@@ -55,51 +49,23 @@ def pathlength(path):
     return len(path["action"])
 
 
-def add_episode_stats(stats, rewards):
-    episoderewards = np.array([np.sum(r) for r in rewards])
-    pathlengths = np.array([r.shape[0] for r in rewards])
+def add_episode_stats(stats, paths):
+    reward_key = "reward_raw" if "reward_raw" in paths[0] else "reward"
+    episoderewards = np.array([np.sum(path[reward_key]) for path in paths])
+    pathlengths = np.array([pathlength(path) for path in paths])
 
     stats["NumEpBatch"] = len(episoderewards)
     stats["EpRewMean"] = episoderewards.mean()
-    stats["EpRewSEM"] = episoderewards.std() / np.sqrt(len(rewards))
+    stats["EpRewSEM"] = episoderewards.std() / np.sqrt(len(paths))
     stats["EpRewMax"] = episoderewards.max()
-    stats["EpRewMin"] = episoderewards.min()
     stats["EpLenMean"] = pathlengths.mean()
     stats["EpLenMax"] = pathlengths.max()
-    stats["EpLenMin"] = pathlengths.min()
     stats["RewPerStep"] = episoderewards.sum() / pathlengths.sum()
 
 
-def merge_episode_stats(statslist):
-    total_stats = OrderedDict()
-    total_info_before = []
-    total_info_after = []
-    rewards = []
-
-    for i in range(len(statslist[0][0])):
-        total_info_before.append((statslist[0][0][i][0], merge_dict([stats[0][i][1] for stats in statslist])))
-        total_info_after.append((statslist[0][1][i][0], merge_dict([stats[1][i][1] for stats in statslist])))
-    for stats in statslist:
-        rewards += stats[2]
-    add_episode_stats(total_stats, rewards)
-    for k in total_info_before:
-        add_fixed_stats(total_stats, k[0], 'before', k[1])
-    for k in total_info_after:
-        add_fixed_stats(total_stats, k[0], 'after', k[1])
-    return total_stats
-
-
-def add_fixed_stats(stats, prefix, suffix, d):
+def add_prefixed_stats(stats, prefix, d):
     for k in d:
-        stats[prefix + "_" + k + "_" + suffix] = d[k]
-
-
-def merge_dict(dictlist):
-    merged_dict = OrderedDict()
-    keys = dictlist[0].keys()
-    for k in keys:
-        merged_dict[k] = np.mean([d[k] for d in dictlist])
-    return merged_dict
+        stats[prefix + "_" + k] = d[k]
 
 
 use_cuda = torch.cuda.is_available()

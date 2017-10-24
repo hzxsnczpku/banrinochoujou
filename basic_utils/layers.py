@@ -4,11 +4,11 @@ from basic_utils.utils import *
 class ConcatFixedStd(nn.Module):
     def __init__(self, ishp):
         super(ConcatFixedStd, self).__init__()
-        self.log_std = nn.Parameter(torch.zeros(1, ishp))
+        self.log_var = nn.Parameter(torch.zeros(1, ishp) - 1.0)
 
     def forward(self, x):
         Mean = x
-        Std = self.log_std.exp() * Variable(torch.ones(x.size()))
+        Std = torch.exp(self.log_var * 0.5) * Variable(torch.ones(x.size()))
         return torch.cat((Mean, Std), dim=1)
 
 
