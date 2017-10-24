@@ -20,7 +20,8 @@ class Master:
             self.agent.load_model("./save_model/" + self.cfg["ENV_NAME"] + "_" + self.cfg["agent"])
 
     def train(self):
-        # mp.set_start_method('spawn')
+        if use_cuda:
+            mp.set_start_method('spawn')
         tstart = time.time()
         require_q = Queue()
         workers = []
