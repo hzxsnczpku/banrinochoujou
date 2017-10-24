@@ -296,7 +296,7 @@ class Adam_Optimizer:
 
         for e in range(self.epochs):
             sortinds = np.random.permutation(observations.size()[0])
-            sortinds = torch.from_numpy(sortinds).long()
+            sortinds = turn_into_cuda(torch.from_numpy(sortinds).long())
             for j in range(num_batches):
                 start = j * batch_size
                 end = (j + 1) * batch_size
