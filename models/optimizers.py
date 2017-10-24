@@ -309,7 +309,7 @@ class Adam_Optimizer:
                 loss.backward()
                 self.optimizer.step()
 
-        return {'123':0}
+        return {'123': 0}
 
 
 # ================================================================

@@ -20,9 +20,10 @@ def update_default_config(tuples, usercfg):
 
 def compute_advantage(vf, paths, gamma, lam):
     for path in paths:
-        rewards = path['reward'] * (1 - gamma) if gamma<0.999 else path['reward']
+        rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
         path['return'] = discount(rewards, gamma)
-        values = vf.predict(path["observation"])
+        values = vf.predict(path["observation"]).reshape((-1,))
+
         tds = rewards - values + np.append(values[1:] * gamma, 0)
         advantages = discount(tds, gamma * lam)
         path['advantage'] = advantages

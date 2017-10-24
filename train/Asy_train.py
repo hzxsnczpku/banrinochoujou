@@ -41,6 +41,7 @@ class Master:
                 index, paths = require_q.get()
                 indexes.append(index)
                 total_paths += paths
+                req_sofar += 1
 
             stats = OrderedDict()
             add_episode_stats(stats, paths)
@@ -83,7 +84,7 @@ def run(cfg, require_q, recv_q, process_id=0):
         paths.append(data)
 
         if timesteps_sofar >= cfg["timesteps_per_batch_worker"]:
-            require_q.put((process_id, agent.update(paths)))
+            require_q.put((process_id, paths))
             agent.set_params(recv_q.get())
             timesteps_sofar = 0
             paths = []

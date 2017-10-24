@@ -12,7 +12,7 @@ def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Pendulum-v0', help='the name of the environment')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='CartPole-v1', help='the name of the environment')
     parser.add_argument('--agent', type=str, default='Ppo_adapted_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether load model or not")
     parser.add_argument("--save_every", type=int, default=None, help="number of steps between two saving operations")
