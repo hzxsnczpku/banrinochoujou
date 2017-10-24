@@ -184,6 +184,7 @@ class Ppo_adapted_Updater:
             prob = self.net(observes)
             logp = self.probtype.loglikelihood(actions, prob)
             logp_old = self.probtype.loglikelihood(actions, old_prob)
+            print(self.probtype.kl(old_prob, prob))
             kl = self.probtype.kl(old_prob, prob).mean()
             loss = -(advantages * (logp - logp_old).exp()).mean() + self.beta * kl
 
