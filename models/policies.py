@@ -117,3 +117,50 @@ class DiagGauss(Probtype):
 
     def output_layers(self, oshp):
         return [nn.Linear(oshp, self.d), ConcatFixedStd(self.d)]
+
+"""
+class DiagBeta(Probtype):
+    def __init__(self, d):
+        self.d = d
+
+    def loglikelihood(self, a, prob):
+        prob = prob.view(-1, self.d, 2)
+        lbeta = torch.lgamma(prob[:,:,0]) + torch.lgamma(prob[:,:,1]) - torch.lgamma(prob[:,:,0]+prob[:,:,1])
+        lp = -lbeta + (prob[:, :, 0] - 1) * a.log() + (prob[:, :, 1] - 1) * (1 - a).log()
+        lp = lp.sum(dim=-1)
+        return lp
+
+    def likelihood(self, a, prob):
+        return torch.exp(self.loglikelihood(a, prob))
+
+    def kl(self, prob0, prob1):
+        prob0 = prob0.view(-1, self.d, 2)
+        prob1 = prob1.view(-1, self.d, 2)
+        alpha0 = prob0[:, :, 0]
+        beta0 = prob0[:, :, 1]
+        alpha1 = prob1[:, :, 0]
+        beta1 = prob1[:, :, 1]
+        lbeta0 = torch.lgamma(alpha0) + torch.lgamma(beta0) - torch.lgamma(alpha0 + beta0)
+        lbeta1 = torch.lgamma(alpha1) + torch.lgamma(beta1) - torch.lgamma(alpha1 + beta1)
+        kl = -lbeta0 + lbeta1 + (alpha0 - alpha1) * (
+            tf.digamma(alpha0) - tf.digamma(alpha0 + beta0)
+        ) + (beta0 - beta1) * (tf.digamma(beta0) - tf.digamma(alpha0 + beta0))
+        kl = kl.sum(axis=-1)
+        return kl
+
+    def entropy(self, prob):
+        prob = tf.reshape(prob, shape=(-1, self.d, 2))
+        ent = -tf.lbeta(prob) + (prob[:, :, 0] - 1) * (tf.digamma(
+            prob[:, :, 0]) - tf.digamma(prob[:, :, 0] + prob[:, :, 1])) + (prob[:, :, 1] - 1) * (tf.digamma(
+            prob[:, :, 1]) - tf.digamma(prob[:, :, 0] + prob[:, :, 1]))
+        ent = tf.reduce_sum(ent, axis=-1)
+        return ent
+
+    def sample(self, prob):
+        prob = np.reshape(prob, (-1, self.d, 2))
+        alpha = prob[:, :, 0]
+        beta = prob[:, :, 1]
+        return np.random.beta(alpha, beta)
+
+    def output_layers(self):
+        return Dense(2 * self.d, activation="softplus"), Lambda(lambda x: x + 1)"""

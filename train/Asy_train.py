@@ -9,9 +9,10 @@ from basic_utils.layers import mujoco_layer_designer
 
 class Asy_train:
     def __init__(self, cfg):
-        self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS + BASELINE_OPTIONS, cfg)
+        self.cfg = update_default_config(MLP_OPTIONS, cfg)
         self.callback = Callback()
         self.cfg = get_env_info(self.cfg)
+        self.cfg["timesteps_per_batch_worker"] = self.cfg["timesteps_per_batch"]/self.cfg["n_worker"]
         if self.cfg["use_mujoco_setting"]:
             self.cfg = mujoco_layer_designer(self.cfg)
         self.agent, self.cfg = get_agent(self.cfg)

@@ -80,7 +80,7 @@ class ReplayBuffer:
         self.cfg = update_default_config(Q_OPTIONS, cfg)
         self._storage = []
         self._maxsize = self.cfg["memory_cap"]
-        self.batch_size = self.cfg["batch_size"]
+        self.batch_size = self.cfg["batch_size_q"]
         self._next_idx = 0
 
     def __len__(self):

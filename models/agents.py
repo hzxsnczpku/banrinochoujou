@@ -108,29 +108,21 @@ class Value_Based_Agent(BasicAgent):
 
 
 def get_agent(cfg):
-    if cfg["agent"] == "Trpo_Agent":
-        cfg = update_default_config(TRPO_OPTIONS, cfg)
+    if cfg["agent"] == "TRPO_Agent":
         agent = TRPO_Agent(cfg)
-    elif cfg["agent"] == "A3C_Agent":
-        cfg = update_default_config(A2C_OPTIONS, cfg)
+    elif cfg["agent"] == "A2C_Agent":
         agent = A2C_Agent(cfg)
-    elif cfg["agent"] == "Ppo_adapted_Agent":
-        cfg = update_default_config(PPO_OPTIONS, cfg)
+    elif cfg["agent"] == "PPO_adapted_Agent":
         agent = PPO_adapted_Agent(cfg)
-    elif cfg["agent"] == "Ppo_clip_Agent":
-        cfg = update_default_config(PPO_OPTIONS, cfg)
+    elif cfg["agent"] == "PPO_clip_Agent":
         agent = PPO_clip_Agent(cfg)
     elif cfg["agent"] == "DQN_Agent":
-        cfg = update_default_config(Q_OPTIONS, cfg)
         agent = DQN_Agent(cfg)
     elif cfg["agent"] == "Double_DQN_Agent":
-        cfg = update_default_config(Q_OPTIONS, cfg)
         agent = Double_DQN_Agent(cfg)
     elif cfg["agent"] == "Priorized_DQN_Agent":
-        cfg = update_default_config(Q_OPTIONS, cfg)
         agent = Prioritized_DQN_Agent(cfg)
     elif cfg["agent"] == "Priorized_Double_DQN_Agent":
-        cfg = update_default_config(Q_OPTIONS, cfg)
         agent = Prioritized_Double_DQN_Agent(cfg)
     return agent, cfg
 

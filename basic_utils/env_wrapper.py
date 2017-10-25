@@ -22,10 +22,7 @@ class Env_wrapper:
         self.running_stat = cfg["running_stat"]
         self.ob_running_mean = None
         self.ob_running_var = None
-        self.rew_running_mean = None
-        self.rew_running_var = None
-        self.rew_scale = 1 - cfg["gamma"]
-        self.alpha = cfg["alpha"]
+        self.alpha = cfg["smoothing_factor"]
 
     def _process(self, ob):
         processed_observe = resize(rgb2gray(ob), self.image_size, mode='constant')

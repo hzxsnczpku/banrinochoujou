@@ -161,8 +161,8 @@ class PPO_adapted_Updater:
         self.epochs = cfg["epochs_updater"]
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
         self.get_info = cfg["get_info"]
-        self.beta_upper = cfg["beta_upper"]
-        self.beta_lower = cfg["beta_lower"]
+        self.beta_upper = cfg["beta_range"][1]
+        self.beta_lower = cfg["beta_range"][0]
         self.beta_adj_thres = cfg["beta_adj_thres"]
 
     def _derive_info(self, observes, actions, advantages, old_prob):

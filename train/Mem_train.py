@@ -9,7 +9,7 @@ import time
 
 class Mem_train:
     def __init__(self, cfg):
-        self.cfg = update_default_config(Q_OPTIONS + ENV_OPTIONS + MLP_OPTIONS, cfg)
+        self.cfg = update_default_config(MLP_OPTIONS, cfg)
         self.callback = Callback()
         self.cfg = get_env_info(self.cfg)
         self.counter = 0
@@ -51,10 +51,3 @@ class Mem_train:
                 stats["TimeElapsed"] = time.time() - tstart
                 self.callback(stats)
                 self.datas = []
-
-
-if __name__ == "__main__":
-    cfg = dict(ENV_NAME="CartPole-v1", agent='DQN_Agent', timestep_limit=0, n_iter=200,
-               timesteps_per_batch=10000, gamma=0.99, save_every=200)
-    tr = Trainer(cfg)
-    tr.train()
