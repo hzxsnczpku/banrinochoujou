@@ -95,8 +95,7 @@ PPO_OPTIONS = [
     ("beta_upper", float, 35.0, ""),
     ("beta_lower", float, 1 / 35.0, ""),
     ("beta_init", float, 1.0, ""),
-    ("beta_adj_thres_u", float, 2.0, ""),
-    ("beta_adj_thres_l", float, 0.5, "")
+    ("beta_adj_thres", float, (0.5,2.0), ""),
 ]
 
 
@@ -106,7 +105,7 @@ BASELINE_OPTIONS = [
     ('batch_size_optimizer', int, 256, "")
 ]
 
-A3C_OPTIONS = [
+A2C_OPTIONS = [
     ("batch_size", int, 256, ""),
     ("lr_updater", float, 8e-4, "learning rate"),
     ("kl_target", float, 3e-3, ""),

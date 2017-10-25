@@ -65,11 +65,9 @@ class Policy_Based_Agent(BasicAgent):
 # Value Based Agent
 # ================================================================
 class Value_Based_Agent(BasicAgent):
-    options = MLP_OPTIONS + Q_OPTIONS
-
     def __init__(self, optimizer, usercfg, double=False, priorized=True):
-        self.cfg = update_default_config(self.options, usercfg)
-        self.baseline = make_q_baseline(optimizer, self.cfg, double)
+        self.cfg = usercfg
+        self.baseline = make_q_baseline(optimizer, usercfg, double)
         self.epsilon = self.cfg["ini_epsilon"]
         self.final_epsilon = self.cfg["final_epsilon"]
         self.epsilon_decay = (self.epsilon - self.final_epsilon)/self.cfg["explore_len"]
@@ -112,30 +110,43 @@ class Value_Based_Agent(BasicAgent):
 def get_agent(cfg):
     if cfg["agent"] == "Trpo_Agent":
         cfg = update_default_config(TRPO_OPTIONS, cfg)
-        agent = Trpo_Agent(cfg)
+        agent = TRPO_Agent(cfg)
     elif cfg["agent"] == "A3C_Agent":
-        cfg = update_default_config(A3C_OPTIONS, cfg)
-        agent = A3C_Agent(cfg)
+        cfg = update_default_config(A2C_OPTIONS, cfg)
+        agent = A2C_Agent(cfg)
     elif cfg["agent"] == "Ppo_adapted_Agent":
         cfg = update_default_config(PPO_OPTIONS, cfg)
-        agent = Ppo_adapted_Agent(cfg)
+        agent = PPO_adapted_Agent(cfg)
     elif cfg["agent"] == "Ppo_clip_Agent":
         cfg = update_default_config(PPO_OPTIONS, cfg)
-        agent = Ppo_clip_Agent(cfg)
+        agent = PPO_clip_Agent(cfg)
+    elif cfg["agent"] == "DQN_Agent":
+        cfg = update_default_config(Q_OPTIONS, cfg)
+        agent = DQN_Agent(cfg)
+    elif cfg["agent"] == "Double_DQN_Agent":
+        cfg = update_default_config(Q_OPTIONS, cfg)
+        agent = Double_DQN_Agent(cfg)
+    elif cfg["agent"] == "Priorized_DQN_Agent":
+        cfg = update_default_config(Q_OPTIONS, cfg)
+        agent = Prioritized_DQN_Agent(cfg)
+    elif cfg["agent"] == "Priorized_Double_DQN_Agent":
+        cfg = update_default_config(Q_OPTIONS, cfg)
+        agent = Prioritized_Double_DQN_Agent(cfg)
     return agent, cfg
+
 
 # ================================================================
 # Trust Region Policy Optimization
 # ================================================================
-class Trpo_Agent(Policy_Based_Agent):
+class TRPO_Agent(Policy_Based_Agent):
     def __init__(self, usercfg):
-        Policy_Based_Agent.__init__(self, Trpo_Updater, Adam_Optimizer, usercfg)
+        Policy_Based_Agent.__init__(self, TRPO_Updater, Adam_Optimizer, usercfg)
 
 
 # ================================================================
-# Asynchronous Advantage Actor-Critic
+# Advantage Actor-Critic
 # ================================================================
-class A3C_Agent(Policy_Based_Agent):
+class A2C_Agent(Policy_Based_Agent):
     def __init__(self, usercfg):
         Policy_Based_Agent.__init__(self, Adam_Updater, Adam_Optimizer, usercfg)
 
@@ -143,14 +154,14 @@ class A3C_Agent(Policy_Based_Agent):
 # ================================================================
 # Proximal Policy Optimization
 # ================================================================
-class Ppo_adapted_Agent(Policy_Based_Agent):
+class PPO_adapted_Agent(Policy_Based_Agent):
     def __init__(self, usercfg):
-        Policy_Based_Agent.__init__(self, Ppo_adapted_Updater, Adam_Optimizer, usercfg)
+        Policy_Based_Agent.__init__(self, PPO_adapted_Updater, Adam_Optimizer, usercfg)
 
 
-class Ppo_clip_Agent(Policy_Based_Agent):
+class PPO_clip_Agent(Policy_Based_Agent):
     def __init__(self, usercfg):
-        Policy_Based_Agent.__init__(self, Ppo_clip_Updater, Adam_Optimizer, usercfg)
+        Policy_Based_Agent.__init__(self, PPO_clip_Updater, Adam_Optimizer, usercfg)
 
 
 # ================================================================

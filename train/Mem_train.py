@@ -1,46 +1,34 @@
-import os
-used_gpu = '2'
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = used_gpu
-
-from utils import *
+from basic_utils.utils import *
 from collections import deque
-from options import *
+from basic_utils.options import *
 from models.agents import *
-from utils.env_wrapper import Env_wrapper
+from basic_utils.env_wrapper import Env_wrapper
 from collections import OrderedDict
 import time
 
 
-class Trainer:
+class Mem_train:
     def __init__(self, cfg):
         self.cfg = update_default_config(Q_OPTIONS + ENV_OPTIONS + MLP_OPTIONS, cfg)
         self.callback = Callback()
+        self.cfg = get_env_info(self.cfg)
         self.counter = 0
         self.datas = []
-        env = Env_wrapper(self.cfg)
-        if self.cfg["timestep_limit"] == 0:
-            self.cfg["timestep_limit"] = env.timestep_limit
-        if self.cfg["agent"] == "DQN_Agent":
-            self.agent = DQN_Agent(env.observation_space, env.action_space, cfg)
-        elif self.cfg["agent"] == "Double_DQN_Agent":
-            self.agent = Double_DQN_Agent(env.observation_space, env.action_space, cfg)
-        elif self.cfg["agent"] == "Priorized_DQN_Agent":
-            self.agent = Prioritized_DQN_Agent(env.observation_space, env.action_space, cfg)
-        elif self.cfg["agent"] == "Priorized_Double_DQN_Agent":
-            self.agent = Prioritized_Double_DQN_Agent(env.observation_space, env.action_space, cfg)
-        env.close()
+        self.agent, self.cfg = get_agent(self.cfg)
 
     def train(self):
         env = Env_wrapper(self.cfg)
         tstart = time.time()
         while True:
             ob = env.reset()
+            done = False
             data = defaultdict(list)
-            for _ in range(self.cfg["timestep_limit"]):
+            while not done:
                 action = self.agent.act(ob.reshape((1,)+ob.shape))
                 data["action"].append(action)
-                ob_new, rew, done, _ = env.step(action)
+                ob_new, rew, done, info = env.step(action)
+                for k in info:
+                    data[k].append(info[k])
                 data["reward"].append(rew)
                 self.agent.memorize((ob, action, ob_new, rew, 1-done))
                 ob = ob_new

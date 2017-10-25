@@ -6,7 +6,7 @@ from basic_utils.utils import *
 # ================================================================
 # Trust Region Policy Optimization Updater
 # ================================================================
-class Trpo_Updater:
+class TRPO_Updater:
     def __init__(self, net, probtype, cfg):
         self.net = net
         self.probtype = probtype
@@ -151,7 +151,7 @@ class Adam_Updater:
 # ================================================================
 # Ppo Updater
 # ================================================================
-class Ppo_adapted_Updater:
+class PPO_adapted_Updater:
     def __init__(self, net, probtype, cfg):
         self.net = net
         self.probtype = probtype
@@ -163,8 +163,7 @@ class Ppo_adapted_Updater:
         self.get_info = cfg["get_info"]
         self.beta_upper = cfg["beta_upper"]
         self.beta_lower = cfg["beta_lower"]
-        self.beta_adj_thres_u = cfg["beta_adj_thres_u"]
-        self.beta_adj_thres_l = cfg["beta_adj_thres_l"]
+        self.beta_adj_thres = cfg["beta_adj_thres"]
 
     def _derive_info(self, observes, actions, advantages, old_prob):
         prob = self.net(observes)
@@ -212,9 +211,9 @@ class Ppo_adapted_Updater:
             kl = self.probtype.kl(old_prob, prob).mean()
             if kl.data[0] > self.kl_targ * 4:
                 break
-        if kl.data[0] > self.kl_targ * self.beta_adj_thres_u and self.beta < self.beta_upper:
+        if kl.data[0] > self.kl_targ * self.beta_adj_thres[1] and self.beta < self.beta_upper:
             self.beta = 1.5 * self.beta
-        elif kl.data[0] < self.kl_targ * self.beta_adj_thres_l and self.beta > self.beta_lower:
+        elif kl.data[0] < self.kl_targ * self.beta_adj_thres[0] and self.beta > self.beta_lower:
             self.beta = self.beta / 1.5
 
         if self.get_info:
@@ -222,7 +221,7 @@ class Ppo_adapted_Updater:
             return merge_before_after(info_before, info_after)
 
 
-class Ppo_clip_Updater:
+class PPO_clip_Updater:
     def __init__(self, net, probtype, cfg):
         self.net = net
         self.probtype = probtype

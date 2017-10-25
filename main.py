@@ -5,8 +5,8 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = used_gpu
 
 import argparse
-from train import Asy_train
-
+from train.Asy_train import Asy_train
+from train.Mem_train import Mem_train
 
 def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
@@ -54,12 +54,13 @@ def create_config():
     parser.add_argument("--beta_init", type=float, default=1.0, help="initialization of beta")
     parser.add_argument("--beta_upper", type=float, default=35.0, help="upper bound of the adapted penalty factor")
     parser.add_argument("--beta_lower", type=float, default=1 / 35.0, help="lower bound of the adapted penalty factor")
-    parser.add_argument("--beta_adj_thres_u", type=float, default=2.0, help="threshold to magnify beta")
-    parser.add_argument("--beta_adj_thres_l", type=float, default=0.5, help="threshold to cut off beta")
+    parser.add_argument("--beta_adj_thres", type=tuple, default=(0.5,2.0), help="threshold to magnify beta")
 
     return parser.parse_args().__dict__
 
 
 if __name__ == "__main__":
     cfg = create_config()
-    Asy_train.train(cfg)
+    Trainer = Asy_train(cfg)
+    Trainer.train()
+

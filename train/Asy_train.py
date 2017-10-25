@@ -7,7 +7,7 @@ from basic_utils.env_wrapper import Env_wrapper
 from basic_utils.layers import mujoco_layer_designer
 
 
-class Master:
+class Asy_train:
     def __init__(self, cfg):
         self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS + BASELINE_OPTIONS, cfg)
         self.callback = Callback()
