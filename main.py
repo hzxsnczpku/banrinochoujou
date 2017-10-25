@@ -16,7 +16,7 @@ def create_config():
     parser.add_argument('--agent', type=str, default='Trpo_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether load model or not")
     parser.add_argument("--save_every", type=int, default=None, help="number of steps between two saving operations")
-    parser.add_argument("--get_info", type=bool, defaule=True, help="whether to print update info or not")
+    parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
 
     # RL General Setting
     parser.add_argument("--gamma", type=float, default=0.995, help="discount factor")

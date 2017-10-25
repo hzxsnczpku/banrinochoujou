@@ -16,8 +16,8 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 * [Trust Region Policy Optimization](https://arxiv.org/abs/1502.05477)
 
 * [Proximal Policy Optimization (with the Clipped Surrogate Loss)](https://arxiv.org/abs/1707.06347)
-
-* [Proximal Policy Optimization (with the Adapted Surrogate Loss)](https://arxiv.org/abs/1707.06347)
+  * clipped surrogate loss
+  * adapted surrogate loss
 
 
 ## TO BE IMPLEMENTED
