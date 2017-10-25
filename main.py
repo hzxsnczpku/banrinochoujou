@@ -12,10 +12,11 @@ def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Swimmer-v1', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='Ppo_adapted_Agent', help='which kind of agent')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='MountainCarContinuous-v0', help='the name of the environment')
+    parser.add_argument('--agent', type=str, default='Trpo_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether load model or not")
     parser.add_argument("--save_every", type=int, default=None, help="number of steps between two saving operations")
+    parser.add_argument("--get_info", type=bool, defaule=True, help="whether to print update info or not")
 
     # RL General Setting
     parser.add_argument("--gamma", type=float, default=0.995, help="discount factor")
@@ -38,8 +39,6 @@ def create_config():
     parser.add_argument('--timesteps_per_batch_worker', type=int, default=1000,
                         help='total number of steps between two updates')
     parser.add_argument("--n_worker", type=int, default=5, help="total number of workers")
-    parser.add_argument("--update_threshold", type=int, default=5,
-                        help="update after how many workers have finished sampling")
 
     # TRPO Agent Setting
     parser.add_argument("--cg_damping", type=float, default=1e-3,
@@ -52,6 +51,7 @@ def create_config():
                         help="KL divergence between old and new policy(used in PPO)")
     parser.add_argument("--kl_cutoff_coeff", type=float, default=50.0, help="penalty factor when kl is large")
     parser.add_argument("--clip_epsilon", type=float, default=0.2, help="factor of clipped loss")
+    parser.add_argument("--beta_init", type=float, default=1.0, help="initialization of beta")
     parser.add_argument("--beta_upper", type=float, default=35.0, help="upper bound of the adapted penalty factor")
     parser.add_argument("--beta_lower", type=float, default=1 / 35.0, help="lower bound of the adapted penalty factor")
     parser.add_argument("--beta_adj_thres_u", type=float, default=2.0, help="threshold to magnify beta")

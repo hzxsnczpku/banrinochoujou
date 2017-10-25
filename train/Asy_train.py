@@ -36,7 +36,7 @@ class Master:
             req_sofar = 0
             indexes = []
             total_paths = []
-            while req_sofar < self.cfg["update_threshold"]:
+            while req_sofar < self.cfg["n_worker"]:
                 index, paths = require_q.get()
                 indexes.append(index)
                 total_paths += paths

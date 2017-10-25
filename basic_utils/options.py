@@ -67,7 +67,7 @@ PG_OPTIONS = [
     ("save_every", int, None, ""),
     ("n_worker", int, 10, ""),
     ("update_threshold", int, 10, ""),
-    ("get_data", bool, True, "")
+    ("get_info", bool, True, "")
 ]
 
 ENV_OPTIONS = [
@@ -109,7 +109,8 @@ BASELINE_OPTIONS = [
 A3C_OPTIONS = [
     ("batch_size", int, 256, ""),
     ("lr_updater", float, 8e-4, "learning rate"),
-    ("kl_target", float, 1e-2, ""),
+    ("kl_target", float, 3e-3, ""),
+    ("epochs_updater", int, 20, ""),
 ]
 
 Q_OPTIONS = [
