@@ -3,6 +3,9 @@
 
 Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 
+## Warning:
+* I have just changed part of the codes so that there exists a high probability that you will run into errors when running my code. I am not sure when I will fix it since I may be busy taking midterm exams recently. (ps. the ppo_adapted_agent is fine)
+
 ## Basic Agents
 
 * [Deep Q Learning](https://arxiv.org/abs/1312.5602)

@@ -167,19 +167,43 @@ class Ppo_adapted_Updater:
     def __init__(self, net, probtype, cfg):
         self.net = net
         self.probtype = probtype
-        self.beta = 1.0  # dynamically adjusted D_KL loss multiplier
-        self.eta = 50  # multiplier for D_KL-kl_targ hinge-squared loss
+        self.beta = cfg["beta_init"]  # dynamically adjusted D_KL loss multiplier
+        self.eta = cfg["kl_cutoff_coeff"]
         self.kl_targ = cfg["kl_target"]
-        self.epochs = 20
+        self.epochs = cfg["epochs_updater"]
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
+        self.get_info = cfg["get_info"]
+        self.beta_upper = cfg["beta_upper"]
+        self.beta_lower = cfg["beta_lower"]
+        self.beta_adj_thres_u = cfg["beta_adj_thres_u"]
+        self.beta_adj_thres_l = cfg["beta_adj_thres_l"]
+
+    def _derive_info(self, observes, actions, advantages, old_prob):
+        prob = self.net(observes)
+        logp = self.probtype.loglikelihood(actions, prob)
+        logp_old = self.probtype.loglikelihood(actions, old_prob)
+        kl = self.probtype.kl(old_prob, prob).mean()
+        surr = -(advantages * (logp - logp_old).exp()).mean()
+        loss = surr + self.beta * kl
+
+        if kl.data[0] - 2.0 * self.kl_targ > 0:
+            loss += self.eta * (kl - 2.0 * self.kl_targ).pow(2)
+
+        entropy = self.probtype.entropy(prob).mean()
+        info = {'loss': loss.data[0], 'surr': surr.data[0], 'kl': kl.data[0], 'entropy': entropy.data[0],
+                'beta_pen': self.beta}
+
+        return info
 
     def __call__(self, path):
         observes = turn_into_cuda(path["observation"])
         actions = turn_into_cuda(path["action"])
         advantages = turn_into_cuda(path["advantage"])
 
-        loss_names = ['loss', 'surr', 'kl', 'entropy', 'beta']
         old_prob = self.net(observes).detach()
+
+        if self.get_info:
+            info_before = self._derive_info(observes, actions, advantages, old_prob)
 
         for e in range(self.epochs):
             prob = self.net(observes)
@@ -192,27 +216,22 @@ class Ppo_adapted_Updater:
             if kl.data[0] - 2.0 * self.kl_targ > 0:
                 loss += self.eta * (kl - 2.0 * self.kl_targ).pow(2)
 
-            if e == 0:
-                entropy = self.probtype.entropy(prob).mean()
-                info_old = [loss, surr, kl, entropy, self.beta]
-
             self.net.zero_grad()
             loss.backward()
             self.optimizer.step()
 
             prob = self.net(observes)
             kl = self.probtype.kl(old_prob, prob).mean()
-            entropy = self.probtype.entropy(prob).mean()
             if kl.data[0] > self.kl_targ * 4:  # early stopping if D_KL diverges badly
                 break
-        if kl.data[0] > self.kl_targ * 2 and self.beta < 35:  # servo beta to reach D_KL target
+        if kl.data[0] > self.kl_targ * self.beta_adj_thres_u and self.beta < self.beta_upper:
             self.beta = 1.5 * self.beta  # max clip beta
-        elif kl.data[0] < self.kl_targ / 2 and self.beta > 1 / 35:
+        elif kl.data[0] < self.kl_targ * self.beta_adj_thres_l and self.beta > self.beta_lower:
             self.beta = self.beta / 1.5  # min clip beta
 
-            info_new = [loss, surr, kl, entropy, self.beta]
-
-        return {'PolicyLoss': loss.data[0], 'PolicyEntropy': entropy.data[0], 'KL': kl.data[0], 'Beta': self.beta}
+        if self.get_info:
+            info_after = self._derive_info(observes, actions, advantages, old_prob)
+            return merge_before_after(info_before, info_after)
 
 
 class Ppo_clip_Updater:
@@ -222,24 +241,11 @@ class Ppo_clip_Updater:
         self.clip_epsilon = cfg["clip_epsilon"]
         self.kl_target = cfg["kl_target"]
         self.update_threshold = cfg["update_threshold"]
+        self.epochs = cfg["epochs_updater"]
+        self.get_info = cfg["get_info"]
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
 
-    def step(self, grads=None, update=False):
-        if update:
-            self.optimizer.step()
-            self.net.zero_grad()
-        elif grads is not None:
-            for k, l in zip(self.net.parameters(), grads):
-                ave_l = l / self.update_threshold
-                k.grad = (k.grad + ave_l) if k.grad is not None else ave_l
-
-    def derive_data(self, path):
-        observations = turn_into_cuda(path["observation"])
-        actions = turn_into_cuda(path["action"])
-        advantages = turn_into_cuda(path["advantage"])
-        fixed_dist = turn_into_cuda(path["prob"])
-        fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
-
+    def _derive_info(self, observations, actions, advantages, fixed_dist, fixed_prob):
         new_prob = self.net(observations)
         new_p = self.probtype.likelihood(actions, new_prob)
         prob_ratio = new_p / fixed_prob
@@ -254,28 +260,36 @@ class Ppo_clip_Updater:
         return losses
 
     def __call__(self, path):
-        observations = turn_into_cuda(path["observation"])
+        observes = turn_into_cuda(path["observation"])
         actions = turn_into_cuda(path["action"])
         advantages = turn_into_cuda(path["advantage"])
-        fixed_dist = turn_into_cuda(path["prob"])
-        fixed_prob = self.probtype.likelihood(actions, fixed_dist).detach()
+        old_prob = self.net(observes).detach()
+        fixed_prob = self.probtype.likelihood(actions, old_prob).detach()
 
-        new_prob = self.net(observations)
-        kl = self.probtype.kl(fixed_dist, new_prob).mean()
-        if kl.data[0] > 4 * self.kl_target:
-            return None
-        new_p = self.probtype.likelihood(actions, new_prob)
-        prob_ratio = new_p / fixed_prob
-        cliped_ratio = torch.clamp(prob_ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon)
-        surr = -prob_ratio * advantages
-        cliped_surr = -cliped_ratio * advantages
-        clip_loss = torch.cat([surr, cliped_surr], 1).max(1)[0].mean()
+        if self.get_info:
+            info_before = self._derive_info(observes, actions, advantages, old_prob)
 
-        self.net.zero_grad()
-        clip_loss.backward()
-        grads = [k.grad for k in self.net.parameters()]
-        return grads
+        for e in range(self.epochs):
+            new_prob = self.net(observes)
+            new_p = self.probtype.likelihood(actions, new_prob)
+            prob_ratio = new_p / fixed_prob
+            cliped_ratio = torch.clamp(prob_ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon)
+            surr = -prob_ratio * advantages
+            cliped_surr = -cliped_ratio * advantages
+            clip_loss = torch.cat([surr, cliped_surr], 1).max(1)[0].mean()
 
+            self.net.zero_grad()
+            clip_loss.backward()
+            self.optimizer.step()
+
+            prob = self.net(observes)
+            kl = self.probtype.kl(old_prob, prob).mean()
+            if kl.data[0] > 4 * self.kl_target:
+                break
+
+        if self.get_info:
+            info_after = self._derive_info(observes, actions, advantages, old_prob)
+            return merge_before_after(info_before, info_after)
 
 # ================================================================
 # Adam Optimizer
@@ -284,16 +298,27 @@ class Adam_Optimizer:
     def __init__(self, net, cfg):
         self.net = net
         self.optimizer = optim.Adam(self.net.parameters(), cfg['lr_optimizer'])
-        self.epochs = 10
+        self.epochs = cfg["epoches_optimizer"]
         self.replay_buffer_x = None
         self.replay_buffer_y = None
+        self.get_data = cfg['get_data']
+        self.default_batch_size = cfg['batch_size_optimizer']
+
+    def _derive_info(self, observations, y_targ):
+        y_pred = self.net(observations)
+        explained_var = 1 - torch.var(y_targ - y_pred) / torch.var(y_targ)
+        loss = (y_targ - y_pred).pow(2).mean()
+        info = {'explained_variance': explained_var.data[0], 'loss': loss.data[0]}
+        return info
 
     def __call__(self, path):
         observations = turn_into_cuda(path["observation"])
         y_targ = turn_into_cuda(path["return"])
-        explained_var_before = 1 - torch.var(y_targ - self.net(observations))/torch.var(y_targ)
 
-        num_batches = max(observations.size()[0] // 256, 1)
+        if self.get_data:
+            info_before = self._derive_info(observations, y_targ)
+
+        num_batches = max(observations.size()[0] // self.default_batch_size, 1)
         batch_size = observations.size()[0] // num_batches
 
         if self.replay_buffer_x is None:
@@ -318,8 +343,9 @@ class Adam_Optimizer:
                 loss.backward()
                 self.optimizer.step()
 
-        explained_var_after = 1 - torch.var(y_targ - self.net(observations)) / torch.var(y_targ)
-        return {'e_var_before': explained_var_before.data[0], 'e_var_after': explained_var_after.data[0]}
+        if self.get_data:
+            info_after = self._derive_info(observations, y_targ)
+            return merge_before_after(info_before, info_after)
 
 
 # ================================================================

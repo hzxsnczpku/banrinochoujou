@@ -18,6 +18,14 @@ def update_default_config(tuples, usercfg):
     return usercfg
 
 
+def merge_before_after(info_before, info_after):
+    info = OrderedDict()
+    for k in info_before:
+        info[k + '_before'] = info_before[k]
+        info[k + '_after'] = info_after[k]
+    return info
+
+
 def compute_advantage(vf, paths, gamma, lam):
     for path in paths:
         rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']

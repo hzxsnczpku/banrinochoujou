@@ -66,7 +66,8 @@ PG_OPTIONS = [
     ("load_model", bool, False, ""),
     ("save_every", int, None, ""),
     ("n_worker", int, 10, ""),
-    ("update_threshold", int, 10, "")
+    ("update_threshold", int, 10, ""),
+    ("get_data", bool, True, "")
 ]
 
 ENV_OPTIONS = [
@@ -82,25 +83,31 @@ TRPO_OPTIONS = [
     ("cg_iters", int, 10, ""),
     ("max_kl", float, 1e-2, "KL divergence between old and new policy (averaged over state-space)"),
     ("batch_size", int, 256, ""),
-    ("lr_optimizer", float, 1e-3, "learning rate"),
 ]
 
 PPO_OPTIONS = [
     ("kl_target", float, 0.003, ""),
     ("batch_size", int, 200, ""),
+    ("epochs_updater", int, 20, ""),
     ("kl_cutoff_coeff", float, 50.0, ""),
     ("clip_epsilon", float, 0.2, ""),
-    ("lr_optimizer", float, 1e-3, "learning rate"),
     ("lr_updater", float, 9e-4, "learning rate"),
     ("beta_upper", float, 35.0, ""),
     ("beta_lower", float, 1 / 35.0, ""),
+    ("beta_init", float, 1.0, ""),
     ("beta_adj_thres_u", float, 2.0, ""),
     ("beta_adj_thres_l", float, 0.5, "")
 ]
 
+
+BASELINE_OPTIONS = [
+    ("lr_optimizer", float, 1e-3, "learning rate"),
+    ('epoches_optimizer', int, 10, ""),
+    ('batch_size_optimizer', int, 256, "")
+]
+
 A3C_OPTIONS = [
     ("batch_size", int, 256, ""),
-    ("lr_optimizer", float, 1e-3, "learning rate"),
     ("lr_updater", float, 8e-4, "learning rate"),
     ("kl_target", float, 1e-2, ""),
 ]

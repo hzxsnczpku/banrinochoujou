@@ -9,7 +9,7 @@ from basic_utils.layers import mujoco_layer_designer
 
 class Master:
     def __init__(self, cfg):
-        self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS, cfg)
+        self.cfg = update_default_config(PG_OPTIONS + ENV_OPTIONS + MLP_OPTIONS + BASELINE_OPTIONS, cfg)
         self.callback = Callback()
         self.cfg = get_env_info(self.cfg)
         if self.cfg["use_mujoco_setting"]:
