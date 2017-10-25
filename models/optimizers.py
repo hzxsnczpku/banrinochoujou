@@ -13,7 +13,6 @@ class TRPO_Updater:
         self.max_kl = cfg["max_kl"]
         self.cg_damping = cfg["cg_damping"]
         self.cg_iters = cfg["cg_iters"]
-        self.update_threshold = cfg["update_threshold"]
         self.get_info = cfg["get_info"]
 
     def conjugate_gradients(self, b, nsteps, residual_tol=1e-10):
@@ -110,7 +109,6 @@ class Adam_Updater:
         self.net = net
         self.probtype = probtype
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_updater"])
-        self.update_threshold = cfg["update_threshold"]
         self.kl_target = cfg["kl_target"]
         self.get_info = cfg["get_info"]
         self.epochs = cfg["epochs_updater"]
@@ -227,7 +225,6 @@ class PPO_clip_Updater:
         self.probtype = probtype
         self.clip_epsilon = cfg["clip_epsilon"]
         self.kl_target = cfg["kl_target"]
-        self.update_threshold = cfg["update_threshold"]
         self.epochs = cfg["epochs_updater"]
         self.get_info = cfg["get_info"]
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
