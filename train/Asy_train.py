@@ -39,9 +39,11 @@ class Asy_train:
             total_paths = []
             while req_sofar < self.cfg["n_worker"]:
                 index, paths = require_q.get()
-                indexes.append(index)
-                total_paths += paths
-                req_sofar += 1
+                if index is not None:
+                    indexes.append(index)
+                    req_sofar += 1
+                if paths is not None:
+                    total_paths += paths
 
             stats = OrderedDict()
             add_episode_stats(stats, total_paths)
@@ -84,12 +86,9 @@ def run(cfg, require_q, recv_q, process_id=0):
         paths.append(data)
 
         if timesteps_sofar >= cfg["timesteps_per_batch_worker"]:
-            require_q.put((process_id, paths))
+            for path in paths:
+                require_q.put((None, [path]))
+            require_q.put((process_id, None))
             agent.set_params(recv_q.get())
             timesteps_sofar = 0
             paths = []
-
-
-def train(cfg):
-    tr = Master(cfg)
-    tr.train()
