@@ -39,7 +39,7 @@ def create_config():
     parser.add_argument("--running_stat", type=bool, default=True, help="whether to normalize the frames and rewards")
     parser.add_argument("--smoothing_factor", type=float, default=1 / 50000,
                         help="factor of soft updating in running_stat mode")
-    parser.add_argument("--use_mujoco_setting", type=bool, default=True,
+    parser.add_argument("--use_mujoco_setting", type=bool, default=False,
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
 
     # Asynchronous Setting
