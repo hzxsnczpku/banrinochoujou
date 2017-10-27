@@ -4,6 +4,7 @@ net_topology_pol_vec = [
     {'kind': 'dense', 'units': 64},
     {'kind': 'Tanh'},
     {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
 ]
 
 net_topology_v_vec = [
@@ -12,43 +13,47 @@ net_topology_v_vec = [
     {'kind': 'dense', 'units': 64},
     {'kind': 'Tanh'},
     {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
 ]
 
 net_topology_q_vec = [
     {'kind': 'dense', 'units': 64},
-    {'kind': 'ReLU'},
+    {'kind': 'Tanh'},
     {'kind': 'dense', 'units': 64},
-    {'kind': 'ReLU'},
+    {'kind': 'Tanh'},
 ]
 
 net_topology_pol_fig = [
     {'kind': 'conv', 'filters': 32, 'stride': 4, 'ker_size': 8},
-    {'kind': 'ReLU'},
+    {'kind': 'Tanh'},
     {'kind': 'conv', 'filters': 64, 'stride': 2, 'ker_size': 4},
-    {'kind': 'ReLU'},
+    {'kind': 'Tanh'},
     {'kind': 'conv', 'filters': 64, 'stride': 1, 'ker_size': 3},
     {'kind': 'flatten'},
     {'kind': 'dense', 'units': 512},
+    {'kind': 'Tanh'},
 ]
 
 net_topology_v_fig = [
     {'kind': 'conv', 'filters': 32, 'stride': 4, 'ker_size': 8},
-    {'kind': 'ReLU'},
+    {'kind': 'Tanh'},
     {'kind': 'conv', 'filters': 64, 'stride': 2, 'ker_size': 4},
-    {'kind': 'ReLU'},
+    {'kind': 'Tanh'},
     {'kind': 'conv', 'filters': 64, 'stride': 1, 'ker_size': 3},
     {'kind': 'flatten'},
     {'kind': 'dense', 'units': 512},
+    {'kind': 'Tanh'},
 ]
 
 net_topology_q_fig = [
     {'kind': 'conv', 'filters': 32, 'stride': 4, 'ker_size': 8},
-    {'kind': 'ReLU'},
+    {'kind': 'Tanh'},
     {'kind': 'conv', 'filters': 64, 'stride': 2, 'ker_size': 4},
-    {'kind': 'ReLU'},
+    {'kind': 'Tanh'},
     {'kind': 'conv', 'filters': 64, 'stride': 1, 'ker_size': 3},
     {'kind': 'flatten'},
     {'kind': 'dense', 'units': 512},
+    {'kind': 'Tanh'},
 ]
 
 

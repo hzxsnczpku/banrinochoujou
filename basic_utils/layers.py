@@ -48,6 +48,7 @@ def mujoco_layer_designer(cfg):
         {'kind': 'dense', 'units': hid2_size},
         {'kind': 'Tanh'},
         {'kind': 'dense', 'units': hid3_size},
+        {'kind': 'Tanh'},
     ]
     cfg["net_topology_pol_vec"] = net_topology_pol_vec
     cfg["lr_upadter"] = 9e-4 / np.sqrt(hid2_size)
@@ -61,6 +62,7 @@ def mujoco_layer_designer(cfg):
         {'kind': 'dense', 'units': hid2_size},
         {'kind': 'Tanh'},
         {'kind': 'dense', 'units': hid3_size},
+        {'kind': 'Tanh'},
     ]
     cfg["net_topology_v_vec"] = net_topology_v_vec
     cfg["lr_optimizer"] = 1e-2 / np.sqrt(hid2_size)

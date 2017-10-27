@@ -8,17 +8,20 @@ import argparse
 from basic_utils.options import *
 from train.Asy_train import Asy_train
 from train.Mem_train import Mem_train
+import torch
 
 
 def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Swimmer-v1', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='Trpo_Agent', help='which kind of agent')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Breakout-v0', help='the name of the environment')
+    parser.add_argument('--agent', type=str, default='TRPO_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=None, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
+    parser.add_argument('--disable_cuda', type=bool, default=False, help='whether to disable cuda')
+    parser.add_argument('--disable_cudnn', type=bool, default=False, help='whether to disable cudnn')
 
     # RL General Setting
     parser.add_argument("--gamma", type=float, default=0.995, help="discount factor")
@@ -79,6 +82,8 @@ def create_config():
 
 if __name__ == "__main__":
     cfg = create_config()
+    if cfg['disable_cudnn']:
+        torch.backends.cudnn.enabled = False
     if cfg['agent'] in POLICY_BASED_AGENT:
         Trainer = Asy_train(cfg)
     elif cfg['agent'] in VALUE_BASED_AGENT:

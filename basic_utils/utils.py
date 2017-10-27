@@ -71,6 +71,8 @@ def add_episode_stats(stats, paths):
     stats["EpLenMax"] = pathlengths.max()
     stats["RewPerStep"] = episoderewards.sum() / pathlengths.sum()
 
+    return list(episoderewards)
+
 
 def add_prefixed_stats(stats, prefix, d):
     for k in d:

@@ -25,6 +25,7 @@ class Asy_train:
         require_q = Queue()
         workers = []
         senders = []
+        scores = []
         for i in range(self.cfg["n_worker"]):
             r = Queue()
             senders.append(r)
@@ -46,7 +47,8 @@ class Asy_train:
                     total_paths += paths
 
             stats = OrderedDict()
-            add_episode_stats(stats, total_paths)
+            rewards = add_episode_stats(stats, total_paths)
+            scores += rewards
             for u in self.agent.update(total_paths):
                 add_prefixed_stats(stats, u[0], u[1])
             stats["TimeElapsed"] = time.time() - tstart
@@ -54,6 +56,10 @@ class Asy_train:
 
             for index in indexes:
                 senders[index].put(self.agent.get_params())
+
+            if self.cfg['save_every'] is not None and counter % self.cfg["save_every"] == 0:
+                self.agent.save_model('./save_model/' + self.cfg['ENV_NAME'] + '_' + self.cfg["agent"])
+                np.save('./save_score/' + self.cfg['ENV_NAME'] + '_' + self.cfg["agent"], scores)
 
 
 def run(cfg, require_q, recv_q, process_id=0):
