@@ -6,6 +6,36 @@ from collections import deque
 from gym.spaces import Box
 
 
+class Scaler(object):
+    def __init__(self, obs_dim):
+        self.vars = np.zeros(obs_dim)
+        self.means = np.zeros(obs_dim)
+        self.m = 0
+        self.first_pass = True
+
+    def update(self, x):
+        if self.first_pass:
+            self.means = np.mean(x, axis=0)
+            self.vars = np.var(x, axis=0)
+            self.m = x.shape[0]
+            self.first_pass = False
+        else:
+            n = x.shape[0]
+            new_data_var = np.var(x, axis=0)
+            new_data_mean = np.mean(x, axis=0)
+            new_data_mean_sq = np.square(new_data_mean)
+            new_means = ((self.means * self.m) + (new_data_mean * n)) / (self.m + n)
+            self.vars = (((self.m * (self.vars + np.square(self.means))) +
+                          (n * (new_data_var + new_data_mean_sq))) / (self.m + n) -
+                         np.square(new_means))
+            self.vars = np.maximum(0.0, self.vars)  # occasionally goes negative, clip
+            self.means = new_means
+            self.m += n
+
+    def get(self):
+        return 1/(np.sqrt(self.vars) + 0.1)/3, self.means
+
+
 class Env_wrapper:
     def __init__(self, cfg):
         self.env = gym.make(cfg["ENV_NAME"])
@@ -20,9 +50,13 @@ class Env_wrapper:
         self.action_space = self.env.action_space
 
         self.running_stat = cfg["running_stat"]
-        self.ob_running_mean = None
-        self.ob_running_var = None
         self.alpha = cfg["smoothing_factor"]
+        self.offset = None
+        self.scale = None
+
+    def set_scaler(self, scales):
+        self.offset = scales[1]
+        self.scale = scales[0]
 
     def _process(self, ob):
         processed_observe = resize(rgb2gray(ob), self.image_size, mode='constant')
@@ -31,38 +65,33 @@ class Env_wrapper:
     def _normalize_ob(self, ob):
         if not self.running_stat:
             return ob
-        if self.ob_running_mean is None:
-            self.ob_running_mean = ob
-            self.ob_running_var = np.ones_like(ob)
-        else:
-            self.ob_running_var = (1-self.alpha) * self.ob_running_var + self.alpha * np.square(ob - self.ob_running_mean)
-            self.ob_running_mean = (1-self.alpha) * self.ob_running_mean + self.alpha * ob
-
-        return (ob - self.ob_running_mean)/np.sqrt(self.ob_running_var)
+        return (ob - self.offset) * self.scale
 
     def reset(self):
         ob = self.env.reset()
         if self.ob_len > 1:
             ob = self._process(ob)
-        ob = self._normalize_ob(ob)
         for i in range(self.consec_frames):
             self.states.append(ob)
         history = np.concatenate(self.states, axis=-1)
         if self.ob_len > 1:
             history = np.transpose(history, (2, 0, 1))
-        return history
+        info={"observation_raw": history}
+        history_normalized = self._normalize_ob(history)
+        return history_normalized, info
 
     def step(self, action):
         ob, r, done, info = self.env.step(action)
         if self.ob_len > 1:
             ob = self._process(ob)
-        ob = self._normalize_ob(ob)
         self.states.append(ob)
         history = np.concatenate(self.states, axis=-1)
         if self.ob_len > 1:
             history = np.transpose(history, (2, 0, 1))
+        history_normalized = self._normalize_ob(history)
         info["reward_raw"] = r
-        return history, r, done, info
+        info["observation_raw"] = history
+        return history_normalized, r, done, info
 
     def close(self):
         self.env.close()

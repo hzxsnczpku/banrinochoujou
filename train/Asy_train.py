@@ -3,7 +3,7 @@ from torch import multiprocessing as mp
 from torch.multiprocessing import Queue
 
 from models.agents import *
-from basic_utils.env_wrapper import Env_wrapper
+from basic_utils.env_wrapper import Env_wrapper, Scaler
 from basic_utils.layers import mujoco_layer_designer
 
 
@@ -12,6 +12,7 @@ class Asy_train:
         self.cfg = update_default_config(MLP_OPTIONS, cfg)
         self.callback = Callback()
         self.cfg = get_env_info(self.cfg)
+        self.scaler = Scaler(self.cfg["observation_space"].shape)
         self.cfg["timesteps_per_batch_worker"] = self.cfg["timesteps_per_batch"]/self.cfg["n_worker"]
         if self.cfg["use_mujoco_setting"]:
             self.cfg = mujoco_layer_designer(self.cfg)
@@ -30,7 +31,7 @@ class Asy_train:
             r = Queue()
             senders.append(r)
             workers.append(mp.Process(target=run, args=(self.cfg, require_q, r, i)))
-            r.put(self.agent.get_params())
+            r.put((self.agent.get_params(), self.scaler.get()))
         for worker in workers:
             worker.start()
 
@@ -44,6 +45,8 @@ class Asy_train:
                     indexes.append(index)
                     req_sofar += 1
                 if paths is not None:
+                    for path in paths:
+                        self.scaler.update(path['observation_raw'])
                     total_paths += paths
 
             stats = OrderedDict()
@@ -55,7 +58,7 @@ class Asy_train:
             counter = self.callback(stats)
 
             for index in indexes:
-                senders[index].put(self.agent.get_params())
+                senders[index].put((self.agent.get_params(), self.scaler.get()))
 
             if self.cfg['save_every'] is not None and counter % self.cfg["save_every"] == 0:
                 self.agent.save_model('./save_model/' + self.cfg['ENV_NAME'] + '_' + self.cfg["agent"])
@@ -64,15 +67,18 @@ class Asy_train:
 
 def run(cfg, require_q, recv_q, process_id=0):
     agent, cfg = get_agent(cfg)
-    params = recv_q.get()
+    params, scale = recv_q.get()
     agent.set_params(params)
 
     paths = []
     env = Env_wrapper(cfg)
     timesteps_sofar = 0
     while True:
-        ob = env.reset()
         data = defaultdict(list)
+        env.set_scaler(scale)
+        ob, info = env.reset()
+        for k in info:
+            data[k].append(info[k])
         done = False
         while not done:
             data["observation"].append(ob)

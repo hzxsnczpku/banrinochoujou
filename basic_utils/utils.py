@@ -130,3 +130,13 @@ def get_env_info(cfg):
 
 def turn_into_cuda(var):
     return var.cuda() if use_cuda else var
+
+
+def derive_observation_data(path):
+    observations = path["observation_raw"]
+    new_data_var = np.var(observations, axis=0)
+    new_data_mean = np.mean(observations, axis=0)
+    new_data_mean_sq = np.square(new_data_mean)
+    n = observations.shape[0]
+
+    return {'new_data_var': new_data_var, 'new_data_mean': new_data_mean, 'new_data_mean_sq': new_data_mean_sq, 'n': n}

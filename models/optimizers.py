@@ -162,7 +162,6 @@ class PPO_adapted_Updater:
         self.beta_upper = cfg["beta_range"][1]
         self.beta_lower = cfg["beta_range"][0]
         self.beta_adj_thres = cfg["beta_adj_thres"]
-        self.lr_multiplier = 1.0
 
     def _derive_info(self, observes, actions, advantages, old_prob):
         prob = self.net(observes)
@@ -201,7 +200,6 @@ class PPO_adapted_Updater:
 
             if kl.data[0] - 2.0 * self.kl_targ > 0:
                 loss += self.eta * (kl - 2.0 * self.kl_targ).pow(2)
-
             self.net.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -212,9 +210,6 @@ class PPO_adapted_Updater:
                 break
         if kl.data[0] > self.kl_targ * self.beta_adj_thres[1] and self.beta < self.beta_upper:
             self.beta = 1.5 * self.beta
-            if self.beta > 30 and self.lr_multiplier > 0.1:
-                self.lr_multiplier /= 1.5
-                self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"]*self.lr_multiplier)
         elif kl.data[0] < self.kl_targ * self.beta_adj_thres[0] and self.beta > self.beta_lower:
             self.beta = self.beta / 1.5
 
