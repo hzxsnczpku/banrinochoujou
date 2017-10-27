@@ -101,6 +101,7 @@ def run(cfg, require_q, recv_q, process_id=0):
             for path in paths:
                 require_q.put((None, [path]))
             require_q.put((process_id, None))
-            agent.set_params(recv_q.get())
+            params, scale = recv_q.get()
+            agent.set_params(params)
             timesteps_sofar = 0
             paths = []

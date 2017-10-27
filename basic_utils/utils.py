@@ -67,8 +67,10 @@ def add_episode_stats(stats, paths):
     stats["EpRewMean"] = episoderewards.mean()
     stats["EpRewSEM"] = episoderewards.std() / np.sqrt(len(paths))
     stats["EpRewMax"] = episoderewards.max()
+    stats["EpRewMin"] = episoderewards.min()
     stats["EpLenMean"] = pathlengths.mean()
     stats["EpLenMax"] = pathlengths.max()
+    stats["EpLenMax"] = pathlengths.min()
     stats["RewPerStep"] = episoderewards.sum() / pathlengths.sum()
 
     return list(episoderewards)
