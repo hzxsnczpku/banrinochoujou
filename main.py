@@ -57,14 +57,14 @@ def create_config():
     parser.add_argument("--max_kl", type=float, default=1e-2, help="KL divergence between old and new policy")
 
     # PPO Setting
-    parser.add_argument("--kl_target", type=float, default=0.003,
+    parser.add_argument("--kl_target", type=float, default=0.01,
                         help="KL divergence between old and new policy(used in PPO)")
     parser.add_argument("--kl_cutoff_coeff", type=float, default=50.0, help="penalty factor when kl is large")
     parser.add_argument("--clip_epsilon", type=float, default=0.2, help="factor of clipped loss")
     parser.add_argument("--beta_init", type=float, default=1.0, help="initialization of beta")
-    parser.add_argument("--beta_range", type=tuple, default=(1 / 35.0, 35.0),
+    parser.add_argument("--beta_range", type=tuple, default=(1 / 350.0, 350.0),
                         help="range of the adapted penalty factor")
-    parser.add_argument("--beta_adj_thres", type=tuple, default=(0.5, 2.0), help="threshold to magnify beta")
+    parser.add_argument("--beta_adj_thres", type=tuple, default=(0.6, 1.6), help="threshold to magnify beta")
 
     # Q Setting
     parser.add_argument("--batch_size_q", type=int, default=64, help="size of the minibatch in Q learning")

@@ -200,6 +200,7 @@ class PPO_adapted_Updater:
 
             if kl.data[0] - 2.0 * self.kl_targ > 0:
                 loss += self.eta * (kl - 2.0 * self.kl_targ).pow(2)
+
             self.net.zero_grad()
             loss.backward()
             self.optimizer.step()

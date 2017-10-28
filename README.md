@@ -31,3 +31,8 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 
 ### Modules
 *  ICM
+
+## Experiment Results
+<div align = 'center'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HalfCheetah.png" width='160px' height = '200px'></a>
+</div>
