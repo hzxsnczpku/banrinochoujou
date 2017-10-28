@@ -28,14 +28,33 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 *  CEM
 *  acktr
 *  Distributional Q Learning
+*  Feudal Network
 
 ### Modules
 *  ICM
 
+## How to Play
+For example, Run the following code to train a TRPO Agent under the MuJoCo HalfCheetah-v1 environment:
+```
+python main.py --env HalfCheetah-v1 --agent TRPO_Agent --use_mujoco_setting True --save_every 300
+```
+
+To get a more detailed overview of the parameters, run the following code:
+```
+python main.py -h
+```
+
 ## Experiment Results
+Below are some experimental results achieved by my baselines:
+
+### MuJoCo Benchmark
 <div align = 'center'>
-<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HalfCheetah.png" width='400px'></a>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HalfCheetah.png" width='400px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Swimmer.png" width='400px'>
 </div>
+
+### Atari Benchmark
+Under construction...
 
 ## Dependency
 * tabulate 0.7.7
@@ -43,3 +62,6 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 * pytorch 0.2.0
 * pyparsing 2.1.4
 * openai gym
+
+## References
+Under Construction...
