@@ -157,7 +157,8 @@ class PPO_adapted_Updater:
         self.eta = cfg["kl_cutoff_coeff"]
         self.kl_targ = cfg["kl_target"]
         self.epochs = cfg["epochs_updater"]
-        self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
+        self.lr = cfg["lr_updater"]
+        self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
         self.get_info = cfg["get_info"]
         self.beta_upper = cfg["beta_range"][1]
         self.beta_lower = cfg["beta_range"][0]
@@ -210,9 +211,11 @@ class PPO_adapted_Updater:
             if kl.data[0] > self.kl_targ * 4:
                 break
         if kl.data[0] > self.kl_targ * self.beta_adj_thres[1] and self.beta < self.beta_upper:
-            self.beta = 1.5 * self.beta
+            self.beta = self.beta * 1.5
+            self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
         elif kl.data[0] < self.kl_targ * self.beta_adj_thres[0] and self.beta > self.beta_lower:
             self.beta = self.beta / 1.5
+            self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
 
         if self.get_info:
             info_after = self._derive_info(observes, actions, advantages, old_prob)

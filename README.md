@@ -36,3 +36,10 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 <div align = 'center'>
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HalfCheetah.png" width='400px'></a>
 </div>
+
+## Dependency
+* tabulate 0.7.7
+* scipy 0.19.0
+* pytorch 0.2.0
+* pyparsing 2.1.4
+* openai gym
