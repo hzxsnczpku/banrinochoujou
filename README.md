@@ -34,7 +34,7 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 *  ICM
 
 ## How to Play
-For example, Run the following code to train a TRPO Agent under the MuJoCo HalfCheetah-v1 environment:
+For example, run the following code to train a TRPO Agent under the MuJoCo HalfCheetah-v1 environment:
 ```
 python main.py --env HalfCheetah-v1 --agent TRPO_Agent --use_mujoco_setting True --save_every 300
 ```
