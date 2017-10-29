@@ -40,13 +40,11 @@ def create_config():
     parser.add_argument("--consec_frames", type=int, default=1, help="how many frames to concatenete in a row")
     parser.add_argument("--image_size", type=tuple, default=(84, 84), help="the size of processed frames")
     parser.add_argument("--running_stat", type=bool, default=True, help="whether to normalize the frames and rewards")
-    parser.add_argument("--smoothing_factor", type=float, default=1 / 50000,
-                        help="factor of soft updating in running_stat mode")
     parser.add_argument("--use_mujoco_setting", type=bool, default=True,
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
 
     # Asynchronous Setting
-    parser.add_argument('--timesteps_per_batch', type=int, default=1000,
+    parser.add_argument('--timesteps_per_batch', type=int, default=5000,
                         help='total number of steps between two updates')
     parser.add_argument("--n_worker", type=int, default=5, help="total number of workers")
 

@@ -50,7 +50,6 @@ class Env_wrapper:
         self.action_space = self.env.action_space
 
         self.running_stat = cfg["running_stat"]
-        self.alpha = cfg["smoothing_factor"]
         self.offset = None
         self.scale = None
 
