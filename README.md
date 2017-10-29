@@ -51,6 +51,8 @@ Below are some experimental results achieved by my baselines:
 <div align = 'center'>
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HalfCheetah.png" width='400px'>
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Swimmer.png" width='400px'>
+<br>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/InvertedPendulum.png" width='400px'>
 </div>
 
 ### Atari Benchmark
