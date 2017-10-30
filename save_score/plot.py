@@ -6,14 +6,14 @@ MEAN_LENGTH = 100
 NAME = ["InvertedDoublePendulum-v1", "HalfCheetah-v1", "InvertedPendulum-v1", "Swimmer-v1", "Reacher-v1", "Walker2d-v1",
         "Humanoid-v1", "HumanoidStandup-v1", "Ant-v1", "Hopper-v1", "BipedalWalker-v2"]
 
-index = 4
+index = 0
 
 distri = ["PPO_adapted", "PPO_clip", "TRPO", "A2C"]
 pylab.title(NAME[index])
 pylab.xlabel("episode")
 pylab.ylabel("score")
 c = []
-length = 50000
+length = 150000
 
 for dis in distri:
     a = np.load(NAME[index] + "_" + dis + '_Agent' + ".npy")
