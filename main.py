@@ -46,6 +46,8 @@ def create_config():
     # Asynchronous Setting
     parser.add_argument('--timesteps_per_batch', type=int, default=5000,
                         help='total number of steps between two updates')
+    parser.add_argument('--path_num', type=int, default=None,
+                        help='fix the number of paths in every updating if not set None')
     parser.add_argument("--n_worker", type=int, default=5, help="total number of workers")
 
     # TRPO Setting

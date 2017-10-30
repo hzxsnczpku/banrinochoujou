@@ -1,10 +1,11 @@
 import time
+
 from torch import multiprocessing as mp
 from torch.multiprocessing import Queue
 
-from models.agents import *
-from basic_utils.env_wrapper import Env_wrapper, Scaler
+from basic_utils.env_wrapper import Scaler
 from basic_utils.layers import mujoco_layer_designer
+from models.agents import *
 
 
 class Asy_train:
@@ -13,7 +14,7 @@ class Asy_train:
         self.callback = Callback()
         self.cfg = get_env_info(self.cfg)
         self.scaler = Scaler(self.cfg["observation_space"].shape)
-        self.cfg["timesteps_per_batch_worker"] = self.cfg["timesteps_per_batch"]/self.cfg["n_worker"]
+        self.cfg["timesteps_per_batch_worker"] = self.cfg["timesteps_per_batch"] / self.cfg["n_worker"]
         if self.cfg["use_mujoco_setting"]:
             self.cfg = mujoco_layer_designer(self.cfg)
         self.agent, self.cfg = get_agent(self.cfg)
@@ -97,7 +98,7 @@ def run(cfg, require_q, recv_q, process_id=0):
         timesteps_sofar += pathlength(data)
         paths.append(data)
 
-        if timesteps_sofar >= cfg["timesteps_per_batch_worker"]:
+        if (cfg['path_num'] is not None and len(paths) >= cfg['path_num']) or timesteps_sofar >= cfg["timesteps_per_batch_worker"]:
             for path in paths:
                 require_q.put((None, [path]))
             require_q.put((process_id, None))
