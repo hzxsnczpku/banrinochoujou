@@ -53,6 +53,8 @@ Below are some experimental results achieved by my baselines:
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Swimmer.png" width='400px'>
 <br>
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/InvertedPendulum.png" width='400px'>
+<img src =
+"https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Reacher.png" width='400px'>
 </div>
 
 ### Atari Benchmark
