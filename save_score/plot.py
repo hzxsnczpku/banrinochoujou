@@ -1,7 +1,8 @@
 import numpy as np
 import pylab
 
-MEAN_LENGTH = 100
+length = 100000
+MEAN_LENGTH = length//25
 
 NAME = ["InvertedDoublePendulum-v1", "HalfCheetah-v1", "InvertedPendulum-v1", "Swimmer-v1", "Reacher-v1", "Walker2d-v1",
         "Humanoid-v1", "HumanoidStandup-v1", "Ant-v1", "Hopper-v1", "BipedalWalker-v2"]
@@ -13,7 +14,6 @@ pylab.title(NAME[index])
 pylab.xlabel("episode")
 pylab.ylabel("score")
 c = []
-length = 150000
 
 for dis in distri:
     a = np.load(NAME[index] + "_" + dis + '_Agent' + ".npy")
@@ -31,8 +31,8 @@ for dis in distri:
                 mean = np.mean(a[i - MEAN_LENGTH: i])
                 std = np.std(a[i - MEAN_LENGTH: i])
             b.append(mean)
-            upper.append(mean + std)
-            lower.append(mean - std)
+            upper.append(mean + 0.5*std)
+            lower.append(mean - 0.5*std)
 
             not_passed = False
     b = b[:length]

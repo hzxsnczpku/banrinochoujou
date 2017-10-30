@@ -31,7 +31,7 @@ def create_config():
                         help="size of the minibatch when updating the baseline")
     parser.add_argument("--lr_optimizer", type=float, default=1e-3, help="learning rate of the baseline")
     parser.add_argument("--lr_updater", type=float, default=9e-4, help="learning rate of the policy")
-    parser.add_argument("--epochs_updater", type=int, default=20,
+    parser.add_argument("--epochs_updater", type=int, default=10,
                         help='epochs of a single updating process of the policy')
     parser.add_argument('--epoches_optimizer', type=int, default=10,
                         help='epochs of a single updating process of the baseline')
