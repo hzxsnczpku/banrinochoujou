@@ -49,13 +49,13 @@ Below are some experimental results achieved by my baselines:
 
 ### MuJoCo Benchmark
 <div align = 'center'>
-<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HalfCheetah.png" width='300px'>
-<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Swimmer.png" width='300px'>
-<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/InvertedPendulum.png" width='300px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HalfCheetah.png" width='280px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Swimmer.png" width='280px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/InvertedPendulum.png" width='280px'>
 <br>
-<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Reacher.png" width='300px'>
-<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/InvertedDoublePendulum.png" width='300px'>
-<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Hopper.png" width='300px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Reacher.png" width='280px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/InvertedDoublePendulum.png" width='280px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Hopper.png" width='280px'>
 </div>
 
 ### Atari Benchmark
