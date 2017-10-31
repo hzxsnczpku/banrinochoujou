@@ -8,6 +8,7 @@ import argparse
 from basic_utils.options import *
 from train.Asy_train import Asy_train
 from train.Mem_train import Mem_train
+from train.Single_train import Sin_train
 import torch
 
 
@@ -15,8 +16,8 @@ def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Breakout-v0', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='TRPO_Agent', help='which kind of agent')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='HalfCheetah-v0', help='the name of the environment')
+    parser.add_argument('--agent', type=str, default='PPO_adapted_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=None, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
@@ -84,8 +85,9 @@ if __name__ == "__main__":
     cfg = create_config()
     if cfg['disable_cudnn']:
         torch.backends.cudnn.enabled = False
-    if cfg['agent'] in POLICY_BASED_AGENT:
-        Trainer = Asy_train(cfg)
-    elif cfg['agent'] in VALUE_BASED_AGENT:
-        Trainer = Mem_train(cfg)
+    #if cfg['agent'] in POLICY_BASED_AGENT:
+    #    Trainer = Asy_train(cfg)
+    #elif cfg['agent'] in VALUE_BASED_AGENT:
+    #    Trainer = Mem_train(cfg)
+    Trainer = Sin_train(cfg)
     Trainer.train()
