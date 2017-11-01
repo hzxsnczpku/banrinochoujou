@@ -63,6 +63,9 @@ def create_config():
     parser.add_argument("--kl_cutoff_coeff", type=float, default=50.0, help="penalty factor when kl is large")
     parser.add_argument("--clip_epsilon", type=float, default=0.2, help="factor of clipped loss")
     parser.add_argument("--beta_init", type=float, default=1.0, help="initialization of beta")
+    parser.add_argument("--clip_range", type=tuple, default=(0.05, 0.3),
+                        help="range of the adapted penalty factor")
+    parser.add_argument("--clip_adj_thres", type=tuple, default=(0.5, 2.0), help="threshold to magnify clip epsilon")
     parser.add_argument("--beta_range", type=tuple, default=(1 / 35.0, 35.0),
                         help="range of the adapted penalty factor")
     parser.add_argument("--beta_adj_thres", type=tuple, default=(0.5, 2.0), help="threshold to magnify beta")

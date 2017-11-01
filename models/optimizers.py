@@ -216,7 +216,7 @@ class PPO_adapted_Updater:
             if self.beta > self.beta_upper / 1.5:
                 self.lr /= 1.5
                 self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
-        elif kl.data[0] < self.kl_targ * self.beta_adj_thres[0] and self.beta > self.beta_lower:
+        elif kl.data[0] < self.kl_targ * self.beta_adj_thres[0]:
             if self.beta_lower < self.beta:
                 self.beta = self.beta / 1.5
             if self.beta < self.beta_lower * 1.5:
@@ -236,6 +236,10 @@ class PPO_clip_Updater:
         self.kl_target = cfg["kl_target"]
         self.epochs = cfg["epochs_updater"]
         self.get_info = cfg["get_info"]
+        self.clip_adj_thres = cfg["clip_adj_thres"]
+        self.clip_upper = cfg["clip_range"][1]
+        self.clip_lower = cfg["clip_range"][0]
+        self.lr = cfg["lr_updater"]
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
 
     def _derive_info(self, observations, actions, advantages, fixed_dist, fixed_prob):
@@ -249,7 +253,7 @@ class PPO_clip_Updater:
         kl = self.probtype.kl(fixed_dist, new_prob).mean()
 
         losses = {"surr": surr.mean().data[0], "clip_surr": clip_loss.data[0], "kl": kl.data[0],
-                  "ent": self.probtype.entropy(new_prob).data.mean()}
+                  "ent": self.probtype.entropy(new_prob).data.mean(), 'clip_epsilon': self.clip_epsilon, 'lr':self.lr}
         return losses
 
     def __call__(self, path):
@@ -279,6 +283,19 @@ class PPO_clip_Updater:
             kl = self.probtype.kl(old_prob, prob).mean()
             if kl.data[0] > 4 * self.kl_target:
                 break
+
+        if kl.data[0] > self.kl_target * self.clip_adj_thres[1]:
+            if self.clip_lower < self.clip_epsilon:
+                self.clip_epsilon = self.clip_epsilon / 1.2
+            if self.clip_epsilon < self.clip_lower * 1.2:
+                self.lr /= 1.5
+                self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
+        elif kl.data[0] < self.kl_target * self.clip_adj_thres[0]:
+            if self.clip_upper > self.clip_epsilon:
+                self.clip_epsilon = self.clip_epsilon * 1.2
+            if self.clip_epsilon > self.clip_upper / 1.2:
+                self.lr *= 1.5
+                self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
 
         if self.get_info:
             info_after = self._derive_info(observes, actions, advantages, old_prob, fixed_prob)
