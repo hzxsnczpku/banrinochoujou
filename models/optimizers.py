@@ -210,12 +210,18 @@ class PPO_adapted_Updater:
             kl = self.probtype.kl(old_prob, prob).mean()
             if kl.data[0] > self.kl_targ * 4:
                 break
-        if kl.data[0] > self.kl_targ * self.beta_adj_thres[1] and self.beta < self.beta_upper:
-            self.beta = self.beta * 1.5
-            self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
+        if kl.data[0] > self.kl_targ * self.beta_adj_thres[1]:
+            if self.beta_upper > self.beta:
+                self.beta = self.beta * 1.5
+            if self.beta > self.beta_upper / 1.5:
+                self.lr /= 1.5
+                self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
         elif kl.data[0] < self.kl_targ * self.beta_adj_thres[0] and self.beta > self.beta_lower:
-            self.beta = self.beta / 1.5
-            self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
+            if self.beta_lower < self.beta:
+                self.beta = self.beta / 1.5
+            if self.beta < self.beta_lower * 1.5:
+                self.lr *= 1.5
+                self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
 
         if self.get_info:
             info_after = self._derive_info(observes, actions, advantages, old_prob)

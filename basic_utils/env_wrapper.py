@@ -4,6 +4,8 @@ from skimage.color import rgb2gray
 from skimage.transform import resize
 from collections import deque
 from gym.spaces import Box
+import multiprocessing as mp
+from multiprocessing import Queue
 
 
 class Scaler(object):

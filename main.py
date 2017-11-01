@@ -86,7 +86,7 @@ if __name__ == "__main__":
     if cfg['disable_cudnn']:
         torch.backends.cudnn.enabled = False
     if cfg['agent'] in POLICY_BASED_AGENT:
-        Trainer = Sin_train(cfg)
+        Trainer = Asy_train(cfg)
     elif cfg['agent'] in VALUE_BASED_AGENT:
         Trainer = Mem_train(cfg)
     Trainer.train()
