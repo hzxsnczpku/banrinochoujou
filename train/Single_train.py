@@ -51,13 +51,18 @@ class Sin_train:
 
     def train(self):
         tstart = time.time()
+        scores = []
         self.run_policy(episodes=5)
         while True:
             paths = self.run_policy(episodes=5)
             stats = OrderedDict()
-            add_episode_stats(stats, paths)
+            rewards = add_episode_stats(stats, paths)
+            scores += rewards
             for u in self.agent.update(paths):
                 add_prefixed_stats(stats, u[0], u[1])
             stats["TimeElapsed"] = time.time() - tstart
             counter = self.callback(stats)
+            if self.cfg['save_every'] is not None and counter % self.cfg["save_every"] == 0:
+                self.agent.save_model('./save_model/' + self.cfg['ENV_NAME'] + '_' + self.cfg["agent"])
+                np.save('./save_score/' + self.cfg['ENV_NAME'] + '_' + self.cfg["agent"], scores)
 

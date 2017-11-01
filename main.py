@@ -16,10 +16,10 @@ def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='HalfCheetah-v0', help='the name of the environment')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='HalfCheetah-v1', help='the name of the environment')
     parser.add_argument('--agent', type=str, default='PPO_adapted_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
-    parser.add_argument("--save_every", type=int, default=None, help="number of steps between two saving operations")
+    parser.add_argument("--save_every", type=int, default=100, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
     parser.add_argument('--disable_cuda', type=bool, default=False, help='whether to disable cuda')
     parser.add_argument('--disable_cudnn', type=bool, default=False, help='whether to disable cudnn')
@@ -45,9 +45,9 @@ def create_config():
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
 
     # Asynchronous Setting
-    parser.add_argument('--timesteps_per_batch', type=int, default=5000,
-                        help='total number of steps between two updates')
-    parser.add_argument('--path_num', type=int, default=None,
+    parser.add_argument('--timesteps_per_batch', type=int, default=None,
+                        help='total number of steps between two updates if not set None')
+    parser.add_argument('--path_num', type=int, default=5,
                         help='fix the number of paths in every updating if not set None')
     parser.add_argument("--n_worker", type=int, default=5, help="total number of workers")
 
@@ -58,14 +58,14 @@ def create_config():
     parser.add_argument("--max_kl", type=float, default=1e-2, help="KL divergence between old and new policy")
 
     # PPO Setting
-    parser.add_argument("--kl_target", type=float, default=0.01,
+    parser.add_argument("--kl_target", type=float, default=0.003,
                         help="KL divergence between old and new policy(used in PPO)")
     parser.add_argument("--kl_cutoff_coeff", type=float, default=50.0, help="penalty factor when kl is large")
     parser.add_argument("--clip_epsilon", type=float, default=0.2, help="factor of clipped loss")
     parser.add_argument("--beta_init", type=float, default=1.0, help="initialization of beta")
-    parser.add_argument("--beta_range", type=tuple, default=(1 / 350.0, 350.0),
+    parser.add_argument("--beta_range", type=tuple, default=(1 / 35.0, 35.0),
                         help="range of the adapted penalty factor")
-    parser.add_argument("--beta_adj_thres", type=tuple, default=(0.6, 1.6), help="threshold to magnify beta")
+    parser.add_argument("--beta_adj_thres", type=tuple, default=(0.5, 2.0), help="threshold to magnify beta")
 
     # Q Setting
     parser.add_argument("--batch_size_q", type=int, default=64, help="size of the minibatch in Q learning")
@@ -85,9 +85,8 @@ if __name__ == "__main__":
     cfg = create_config()
     if cfg['disable_cudnn']:
         torch.backends.cudnn.enabled = False
-    #if cfg['agent'] in POLICY_BASED_AGENT:
-    #    Trainer = Asy_train(cfg)
-    #elif cfg['agent'] in VALUE_BASED_AGENT:
-    #    Trainer = Mem_train(cfg)
-    Trainer = Sin_train(cfg)
+    if cfg['agent'] in POLICY_BASED_AGENT:
+        Trainer = Sin_train(cfg)
+    elif cfg['agent'] in VALUE_BASED_AGENT:
+        Trainer = Mem_train(cfg)
     Trainer.train()
