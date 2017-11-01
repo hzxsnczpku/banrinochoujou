@@ -1,13 +1,13 @@
 import numpy as np
 import pylab
 
-length = 8000
-MEAN_LENGTH = length//25
+length = 50000
+MEAN_LENGTH = length//100
 
 NAME = ["InvertedDoublePendulum-v1", "HalfCheetah-v1", "InvertedPendulum-v1", "Swimmer-v1", "Reacher-v1", "Walker2d-v1",
         "Humanoid-v1", "HumanoidStandup-v1", "Ant-v1", "Hopper-v1", "BipedalWalker-v2"]
 
-index = 9
+index = 0
 
 distri = ["PPO_adapted", "PPO_clip", "TRPO", "A2C"]
 pylab.title(NAME[index])
@@ -22,19 +22,15 @@ for dis in distri:
     lower = []
 
     for i in range(min(a.shape[0], length)):
-        not_passed = True
-        while not_passed:
-            if i < MEAN_LENGTH:
-                mean = np.mean(a[0:i + 1])
-                std = np.std(a[0:i + 1])
-            else:
-                mean = np.mean(a[i - MEAN_LENGTH: i])
-                std = np.std(a[i - MEAN_LENGTH: i])
-            b.append(mean)
-            upper.append(mean + 0.5*std)
-            lower.append(mean - 0.5*std)
-
-            not_passed = False
+        if i < MEAN_LENGTH:
+            mean = np.mean(a[0:i + 1])
+            std = np.std(a[0:i + 1])
+        else:
+            mean = np.mean(a[i - MEAN_LENGTH: i])
+            std = np.std(a[i - MEAN_LENGTH: i])
+        b.append(mean)
+        upper.append(mean + std)
+        lower.append(mean - std)
     b = b[:length]
     lower = lower[:length]
     upper = upper[:length]
