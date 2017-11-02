@@ -1,13 +1,13 @@
 import numpy as np
 import pylab
 
-length = 100000
+length = 6000
 MEAN_LENGTH = length//25
 
 NAME = ["InvertedDoublePendulum-v1", "HalfCheetah-v1", "InvertedPendulum-v1", "Swimmer-v1", "Reacher-v1", "Walker2d-v1",
         "Humanoid-v1", "HumanoidStandup-v1", "Ant-v1", "Hopper-v1", "BipedalWalker-v2"]
 
-index = -3
+index = -4
 
 distri = ["PPO_adapted", "PPO_clip", "TRPO"]
 pylab.title(NAME[index])
