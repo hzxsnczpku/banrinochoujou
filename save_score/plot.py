@@ -1,15 +1,15 @@
 import numpy as np
 import pylab
 
-length = 10000
+length = 100000
 MEAN_LENGTH = length//25
 
 NAME = ["InvertedDoublePendulum-v1", "HalfCheetah-v1", "InvertedPendulum-v1", "Swimmer-v1", "Reacher-v1", "Walker2d-v1",
         "Humanoid-v1", "HumanoidStandup-v1", "Ant-v1", "Hopper-v1", "BipedalWalker-v2"]
 
-index = 8
+index = -3
 
-distri = ["PPO_adapted", "PPO_clip", "TRPO", "A2C"]
+distri = ["PPO_adapted", "PPO_clip", "TRPO"]
 pylab.title(NAME[index])
 pylab.xlabel("episode")
 pylab.ylabel("score")
