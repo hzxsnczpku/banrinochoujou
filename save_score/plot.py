@@ -1,7 +1,7 @@
 import numpy as np
 import pylab
 
-length = 6000
+length = 20000
 MEAN_LENGTH = length//25
 
 NAME = ["InvertedDoublePendulum-v1", "HalfCheetah-v1", "InvertedPendulum-v1", "Swimmer-v1", "Reacher-v1", "Walker2d-v1",

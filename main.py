@@ -45,7 +45,7 @@ def create_config():
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
 
     # Asynchronous Setting
-    parser.add_argument('--timesteps_per_batch', type=int, default=None,
+    parser.add_argument('--timesteps_per_batch', type=int, default=5000,
                         help='total number of steps between two updates if not set None')
     parser.add_argument('--path_num', type=int, default=5,
                         help='fix the number of paths in every updating if not set None')
@@ -61,14 +61,13 @@ def create_config():
     parser.add_argument("--kl_target", type=float, default=0.003,
                         help="KL divergence between old and new policy(used in PPO)")
     parser.add_argument("--kl_cutoff_coeff", type=float, default=50.0, help="penalty factor when kl is large")
-    parser.add_argument("--clip_epsilon", type=float, default=0.2, help="factor of clipped loss")
+    parser.add_argument("--clip_epsilon_init", type=float, default=0.2, help="factor of clipped loss")
     parser.add_argument("--beta_init", type=float, default=1.0, help="initialization of beta")
     parser.add_argument("--clip_range", type=tuple, default=(0.05, 0.3),
                         help="range of the adapted penalty factor")
-    parser.add_argument("--clip_adj_thres", type=tuple, default=(0.5, 2.0), help="threshold to magnify clip epsilon")
+    parser.add_argument("--adj_thres", type=tuple, default=(0.5, 2.0), help="threshold to magnify clip epsilon")
     parser.add_argument("--beta_range", type=tuple, default=(1 / 35.0, 35.0),
                         help="range of the adapted penalty factor")
-    parser.add_argument("--beta_adj_thres", type=tuple, default=(0.5, 2.0), help="threshold to magnify beta")
 
     # Q Setting
     parser.add_argument("--batch_size_q", type=int, default=64, help="size of the minibatch in Q learning")

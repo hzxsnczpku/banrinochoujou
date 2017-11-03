@@ -81,7 +81,8 @@ class TRPO_Updater:
         self.fixed_prob = self.probtype.likelihood(self.actions, self.fixed_dist).detach()
 
         if self.get_info:
-            info_before = self._derive_info(self.observations, self.actions, self.advantages, self.fixed_dist, self.fixed_prob)
+            info_before = self._derive_info(self.observations, self.actions, self.advantages, self.fixed_dist,
+                                            self.fixed_prob)
 
         loss = self.get_loss()
         grads = torch.autograd.grad(loss, self.net.parameters())
@@ -97,7 +98,8 @@ class TRPO_Updater:
         set_flat_params_to(self.net, new_params)
 
         if self.get_info:
-            info_after = self._derive_info(self.observations, self.actions, self.advantages, self.fixed_dist, self.fixed_prob)
+            info_after = self._derive_info(self.observations, self.actions, self.advantages, self.fixed_dist,
+                                           self.fixed_prob)
             return merge_before_after(info_before, info_after)
 
 
@@ -130,16 +132,11 @@ class Adam_Updater:
         if self.get_info:
             info_before = self._derive_info(observations, actions, advantages, old_prob)
 
-        for e in range(self.epochs):
-            prob = self.net(observations)
-            surr = -(self.probtype.loglikelihood(actions, prob) * advantages).mean()
-            self.net.zero_grad()
-            surr.backward()
-            self.optimizer.step()
-
-            kl = self.probtype.kl(old_prob, prob).mean().data[0]
-            if kl > 4 * self.kl_target:
-                break
+        prob = self.net(observations)
+        surr = -(self.probtype.loglikelihood(actions, prob) * advantages).mean()
+        self.net.zero_grad()
+        surr.backward()
+        self.optimizer.step()
 
         if self.get_info:
             info_after = self._derive_info(observations, actions, advantages, old_prob)
@@ -162,7 +159,7 @@ class PPO_adapted_Updater:
         self.get_info = cfg["get_info"]
         self.beta_upper = cfg["beta_range"][1]
         self.beta_lower = cfg["beta_range"][0]
-        self.beta_adj_thres = cfg["beta_adj_thres"]
+        self.beta_adj_thres = cfg["adj_thres"]
 
     def _derive_info(self, observes, actions, advantages, old_prob):
         prob = self.net(observes)
@@ -177,7 +174,7 @@ class PPO_adapted_Updater:
 
         entropy = self.probtype.entropy(prob).mean()
         info = {'loss': loss.data[0], 'surr': surr.data[0], 'kl': kl.data[0], 'entropy': entropy.data[0],
-                'beta_pen': self.beta}
+                'beta_pen': self.beta, 'lr': self.lr}
 
         return info
 
@@ -232,11 +229,11 @@ class PPO_clip_Updater:
     def __init__(self, net, probtype, cfg):
         self.net = net
         self.probtype = probtype
-        self.clip_epsilon = cfg["clip_epsilon"]
+        self.clip_epsilon = cfg["clip_epsilon_init"]
         self.kl_target = cfg["kl_target"]
         self.epochs = cfg["epochs_updater"]
         self.get_info = cfg["get_info"]
-        self.clip_adj_thres = cfg["clip_adj_thres"]
+        self.clip_adj_thres = cfg["adj_thres"]
         self.clip_upper = cfg["clip_range"][1]
         self.clip_lower = cfg["clip_range"][0]
         self.lr = cfg["lr_updater"]
@@ -253,7 +250,7 @@ class PPO_clip_Updater:
         kl = self.probtype.kl(fixed_dist, new_prob).mean()
 
         losses = {"surr": surr.mean().data[0], "clip_surr": clip_loss.data[0], "kl": kl.data[0],
-                  "ent": self.probtype.entropy(new_prob).data.mean(), 'clip_epsilon': self.clip_epsilon, 'lr':self.lr}
+                  "ent": self.probtype.entropy(new_prob).data.mean(), 'clip_epsilon': self.clip_epsilon, 'lr': self.lr}
         return losses
 
     def __call__(self, path):
