@@ -61,7 +61,7 @@ Below are some experimental results achieved by my baselines:
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Humanoid.png" width='280px'>
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HumanoidStandup.png" width='280px'>
 <br>
-"https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Ant.png" width='280px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Ant.png" width='280px'>
 </div>
 
 ### Atari Benchmark
