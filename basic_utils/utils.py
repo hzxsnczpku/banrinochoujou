@@ -134,11 +134,37 @@ def turn_into_cuda(var):
     return var.cuda() if use_cuda else var
 
 
-def derive_observation_data(path):
-    observations = path["observation_raw"]
-    new_data_var = np.var(observations, axis=0)
-    new_data_mean = np.mean(observations, axis=0)
-    new_data_mean_sq = np.square(new_data_mean)
-    n = observations.shape[0]
+def log_gamma(xx):
+    if isinstance(xx, Variable):
+        ttype = xx.data.type()
+    elif isinstance(xx, torch.Tensor):
+        ttype = xx.type()
+    gamma_coeff = [
+        76.18009172947146,
+        -86.50532032941677,
+        24.01409824083091,
+        -1.231739572450155,
+        0.1208650973866179e-2,
+        -0.5395239384953e-5,
+    ]
+    magic1 = 1.000000000190015
+    magic2 = 2.5066282746310005
+    x = xx - 1.0
+    t = x + 5.5
+    t = t - (x + 0.5) * torch.log(t)
+    ser = Variable(torch.ones(x.size()).type(ttype)) * magic1
+    for c in gamma_coeff:
+        x = x + 1.0
+        ser = ser + torch.pow(x / c, -1)
+    return torch.log(ser * magic2) - t
 
-    return {'new_data_var': new_data_var, 'new_data_mean': new_data_mean, 'new_data_mean_sq': new_data_mean_sq, 'n': n}
+
+def log_beta(t):
+    assert t.dim() in (1, 2)
+    if t.dim() == 1:
+        numer = torch.sum(log_gamma(t))
+        denom = log_gamma(torch.sum(t))
+    else:
+        numer = torch.sum(log_gamma(t), 1)
+        denom = log_gamma(torch.sum(t, 1))
+    return numer - denom

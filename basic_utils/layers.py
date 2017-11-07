@@ -20,6 +20,14 @@ class Flatten(nn.Module):
         return x.view(x.size()[0], -1)
 
 
+class Add_One(nn.Module):
+    def __init__(self):
+        super(Add_One, self).__init__()
+
+    def forward(self, x):
+        return x+1
+
+
 def get_layer(des, inshp):
     if des['kind'] == 'conv':
         return nn.Conv2d(in_channels=inshp, out_channels=des["filters"], kernel_size=des["ker_size"],

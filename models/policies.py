@@ -1,4 +1,4 @@
-from basic_utils.layers import ConcatFixedStd
+from basic_utils.layers import ConcatFixedStd, Add_One
 from basic_utils.utils import *
 
 
@@ -118,14 +118,14 @@ class DiagGauss(Probtype):
     def output_layers(self, oshp):
         return [nn.Linear(oshp, self.d), ConcatFixedStd(self.d)]
 
-"""
+
 class DiagBeta(Probtype):
     def __init__(self, d):
         self.d = d
 
     def loglikelihood(self, a, prob):
         prob = prob.view(-1, self.d, 2)
-        lbeta = torch.lgamma(prob[:,:,0]) + torch.lgamma(prob[:,:,1]) - torch.lgamma(prob[:,:,0]+prob[:,:,1])
+        lbeta = log_gamma(prob[:, :, 0]) + log_gamma(prob[:, :, 1]) - log_gamma(prob[:, :, 0] + prob[:, :, 1])
         lp = -lbeta + (prob[:, :, 0] - 1) * a.log() + (prob[:, :, 1] - 1) * (1 - a).log()
         lp = lp.sum(dim=-1)
         return lp
@@ -140,8 +140,8 @@ class DiagBeta(Probtype):
         beta0 = prob0[:, :, 1]
         alpha1 = prob1[:, :, 0]
         beta1 = prob1[:, :, 1]
-        lbeta0 = torch.lgamma(alpha0) + torch.lgamma(beta0) - torch.lgamma(alpha0 + beta0)
-        lbeta1 = torch.lgamma(alpha1) + torch.lgamma(beta1) - torch.lgamma(alpha1 + beta1)
+        lbeta0 = log_gamma(alpha0) + log_gamma(beta0) - log_gamma(alpha0 + beta0)
+        lbeta1 = log_gamma(alpha1) + log_gamma(beta1) - log_gamma(alpha1 + beta1)
         kl = -lbeta0 + lbeta1 + (alpha0 - alpha1) * (
             tf.digamma(alpha0) - tf.digamma(alpha0 + beta0)
         ) + (beta0 - beta1) * (tf.digamma(beta0) - tf.digamma(alpha0 + beta0))
@@ -149,11 +149,11 @@ class DiagBeta(Probtype):
         return kl
 
     def entropy(self, prob):
-        prob = tf.reshape(prob, shape=(-1, self.d, 2))
-        ent = -tf.lbeta(prob) + (prob[:, :, 0] - 1) * (tf.digamma(
+        prob = prob.view(-1, self.d, 2)
+        ent = -log_beta(prob) + (prob[:, :, 0] - 1) * (tf.digamma(
             prob[:, :, 0]) - tf.digamma(prob[:, :, 0] + prob[:, :, 1])) + (prob[:, :, 1] - 1) * (tf.digamma(
             prob[:, :, 1]) - tf.digamma(prob[:, :, 0] + prob[:, :, 1]))
-        ent = tf.reduce_sum(ent, axis=-1)
+        ent = ent.sum(dim=-1)
         return ent
 
     def sample(self, prob):
@@ -162,5 +162,5 @@ class DiagBeta(Probtype):
         beta = prob[:, :, 1]
         return np.random.beta(alpha, beta)
 
-    def output_layers(self):
-        return Dense(2 * self.d, activation="softplus"), Lambda(lambda x: x + 1)"""
+    def output_layers(self, oshp):
+        return [nn.Linear(oshp, 2 * self.d), nn.Softplus(), ConcatFixedStd(self.d), Add_One()]
