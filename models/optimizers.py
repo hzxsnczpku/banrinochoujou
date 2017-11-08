@@ -367,37 +367,65 @@ class Adam_Q_Optimizer:
         self.gamma = cfg["gamma"]
         self.double = double
         self.count = 0
+        self.get_data = cfg['get_info']
         self.update_target_every = cfg["update_target_every"]
+        self.epochs = cfg["epoches_optimizer"]
+        self.replay_buffer_x = None
+        self.replay_buffer_y = None
+        self.replay_buffer_a = None
+        self.replay_buffer_w = None
+
+    def _derive_info(self, observations, y_targ, actions):
+        y_pred = self.net(observations).gather(1, actions.long())
+        explained_var = 1 - torch.var(y_targ - y_pred) / torch.var(y_targ)
+        loss = (y_targ - y_pred).pow(2).mean()
+        info = {'explained_variance': explained_var.data[0], 'loss': loss.data[0]}
+        return info
 
     def __call__(self, path):
-        observations = path["observation"]
-        actions = path["action"]
-        next_observations = path["next_observation"]
-        rewards = path["reward"]
-        not_dones = path["not_done"]
-        out = OrderedDict()
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        next_observations = turn_into_cuda(path["next_observation"])
+        rewards = turn_into_cuda(path["reward"])
+        not_dones = turn_into_cuda(path["not_done"])
+        weights = turn_into_cuda(path["weights"]) if "weights" in path else None
 
         if not self.double:
             y_targ = self.target_net(next_observations).max(dim=1, keepdim=True)[0]
         else:
             ty = self.net(next_observations).max(dim=1, keepdim=True)[1]
             y_targ = self.target_net(next_observations).gather(1, ty.long())
-
         y_targ = y_targ * not_dones * self.gamma + rewards
-        td_err = torch.abs(self.net(observations).gather(1, actions.long()) - y_targ)
-        loss = (td_err.pow(2) * path["weights"]).sum() if "weights" in path else td_err.pow(2).mean()
-        out['loss_before'] = loss.data[0]
+        y_targ = y_targ.detach()
 
-        self.net.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+        if self.get_data:
+            info_before = self._derive_info(observations, y_targ, actions)
 
-        td_after = torch.abs(self.net(observations).gather(1, actions.long()) - y_targ)
-        loss = (td_after.pow(2) * path["weights"]).sum() if "weights" in path else td_after.pow(2).mean()
-        out['loss_after'] = loss.data[0]
+        if self.replay_buffer_x is None:
+            x_train, y_train, a_train, w_train = observations, y_targ, actions, weights
+        else:
+            x_train = torch.cat([observations, self.replay_buffer_x], dim=0)
+            y_train = torch.cat([y_targ, self.replay_buffer_y], dim=0)
+            a_train = torch.cat([actions, self.replay_buffer_a], dim=0)
+            w_train = torch.cat([weights, self.replay_buffer_w], dim=0) if weights is not None else None
+        self.replay_buffer_x = observations
+        self.replay_buffer_y = y_targ
+        self.replay_buffer_a = actions
+        self.replay_buffer_w = weights
+
+        for e in range(self.epochs):
+            td_err = torch.abs(self.net(x_train).gather(1, a_train.long()) - y_train)
+            loss = (td_err.pow(2) * w_train).sum() if w_train is not None else td_err.pow(2).mean()
+            self.net.zero_grad()
+            loss.backward()
+            self.optimizer.step()
 
         self.count += 1
         if self.count % self.update_target_every == 0:
             self.target_net.load_state_dict(self.net.state_dict())
 
-        return out, {"td_err": td_err.data.cpu().numpy()}
+        if self.get_data:
+            info_after = self._derive_info(observations, y_targ, actions)
+            return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
+
+        return None, {"td_err": td_err.data.cpu().numpy()}

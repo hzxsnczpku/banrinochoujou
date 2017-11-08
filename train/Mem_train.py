@@ -2,7 +2,7 @@ from basic_utils.utils import *
 from collections import deque
 from basic_utils.options import *
 from models.agents import *
-from basic_utils.env_wrapper import Env_wrapper
+from basic_utils.env_wrapper import Env_wrapper, Scaler
 from collections import OrderedDict
 import time
 
@@ -15,14 +15,18 @@ class Mem_train:
         self.counter = 0
         self.datas = []
         self.agent, self.cfg = get_agent(self.cfg)
+        self.scaler = Scaler(self.cfg["observation_space"].shape)
 
     def train(self):
         env = Env_wrapper(self.cfg)
         tstart = time.time()
         while True:
-            ob = env.reset()
-            done = False
             data = defaultdict(list)
+            env.set_scaler(self.scaler.get())
+            ob, info = env.reset()
+            for k in info:
+                data[k].append(info[k])
+            done = False
             while not done:
                 action = self.agent.act(ob.reshape((1,)+ob.shape))
                 data["action"].append(action)
@@ -42,7 +46,7 @@ class Mem_train:
     def update(self, tstart):
         u_stats = self.agent.update()
         if u_stats is not None:
-            if self.counter % 2000 == 0:
+            if len(self.datas) >= 10:
                 stats = OrderedDict()
                 add_episode_stats(stats, self.datas)
                 for sta in u_stats:

@@ -65,7 +65,7 @@ class Policy_Based_Agent(BasicAgent):
 # Value Based Agent
 # ================================================================
 class Value_Based_Agent(BasicAgent):
-    def __init__(self, optimizer, usercfg, double=False, priorized=True):
+    def __init__(self, optimizer, usercfg, double=False, priorized=False):
         self.cfg = usercfg
         self.baseline = make_q_baseline(optimizer, usercfg, double)
         self.epsilon = self.cfg["ini_epsilon"]

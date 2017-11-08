@@ -77,7 +77,7 @@ class SumSegmentTree(SegmentTree):
 
 class ReplayBuffer:
     def __init__(self, cfg):
-        self.cfg = update_default_config(Q_OPTIONS, cfg)
+        self.cfg = cfg
         self._storage = []
         self._maxsize = self.cfg["memory_cap"]
         self.batch_size = self.cfg["batch_size_q"]
