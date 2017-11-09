@@ -154,6 +154,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         return encoded_sample
 
     def update_priorities(self, idxes, priorities):
+        priorities = list(priorities.reshape((-1,)))
         assert len(idxes) == len(priorities)
         for idx, priority in zip(idxes, priorities):
             assert 0 <= idx < len(self._storage)

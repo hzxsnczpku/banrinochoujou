@@ -50,7 +50,7 @@ def compute_target(qf, path, gamma, double=False):
         y_targ = qf.predict(next_observations, target=True).max(axis=1)
     else:
         ty = qf.predict(next_observations).argmax(axis=1)
-        y_targ = qf.predict(next_observations, target=True)[np.arange(64),ty]
+        y_targ = qf.predict(next_observations, target=True)[np.arange(next_observations.shape[0]), ty]
     path['y_targ'] = y_targ * not_dones * gamma + rewards
 
 

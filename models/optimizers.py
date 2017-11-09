@@ -386,6 +386,7 @@ class Adam_Q_Optimizer:
         actions = turn_into_cuda(path["action"])
         weights = turn_into_cuda(path["weights"]) if "weights" in path else None
         y_targ = turn_into_cuda(path['y_targ'])
+        td_err0 = torch.abs(self.net(observations).gather(1, actions.long()) - y_targ)
 
         if self.get_data:
             info_before = self._derive_info(observations, y_targ, actions)
@@ -415,6 +416,6 @@ class Adam_Q_Optimizer:
 
         if self.get_data:
             info_after = self._derive_info(observations, y_targ, actions)
-            return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
+            return merge_before_after(info_before, info_after), {"td_err": td_err0.data.cpu().numpy()}
 
-        return None, {"td_err": td_err.data.cpu().numpy()}
+        return None, {"td_err": td_err0.data.cpu().numpy()}

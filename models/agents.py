@@ -99,6 +99,8 @@ class Value_Based_Agent(BasicAgent):
         compute_target(self.baseline, path, gamma=self.cfg["gamma"], double=self.double)
         keys = ["observation", "action", "y_targ"]
         processed_path = pre_process_path([path], keys)
+        if 'weights' in path:
+            processed_path['weights'] = path['weights']
         vf_stats, info = self.baseline.fit(processed_path)
         self.memory.update_priorities(path["idxes"], info["td_err"])
         vf_stats["epsilon"] = self.epsilon
@@ -124,9 +126,9 @@ def get_agent(cfg):
         agent = DQN_Agent(cfg)
     elif cfg["agent"] == "Double_DQN_Agent":
         agent = Double_DQN_Agent(cfg)
-    elif cfg["agent"] == "Priorized_DQN_Agent":
+    elif cfg["agent"] == "Prioritized_DQN_Agent":
         agent = Prioritized_DQN_Agent(cfg)
-    elif cfg["agent"] == "Priorized_Double_DQN_Agent":
+    elif cfg["agent"] == "Prioritized_Double_DQN_Agent":
         agent = Prioritized_Double_DQN_Agent(cfg)
     return agent, cfg
 

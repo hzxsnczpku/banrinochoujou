@@ -17,7 +17,7 @@ def create_config():
 
     # System Basic Setting
     parser.add_argument('--env', type=str, dest="ENV_NAME", default='CartPole-v1', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='Double_DQN_Agent', help='which kind of agent')
+    parser.add_argument('--agent', type=str, default='Prioritized_DQN_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=100, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")

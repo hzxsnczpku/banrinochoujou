@@ -58,7 +58,7 @@ def make_policy(updater, cfg):
     ob_space = cfg["observation_space"]
     ac_space = cfg["action_space"]
     assert isinstance(ob_space, Box)
-    if len(ob_space.shape)==1:
+    if len(ob_space.shape) == 1:
         net_topology_pol = cfg["net_topology_pol_vec"]
     else:
         net_topology_pol = cfg["net_topology_pol_fig"]
