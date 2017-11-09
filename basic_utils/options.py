@@ -17,12 +17,10 @@ net_topology_v_vec = [
 ]
 
 net_topology_q_vec = [
-    {'kind': 'dense', 'units': 12},
+    {'kind': 'dense', 'units': 24},
     {'kind': 'ReLU'},
-    {'kind': 'dense', 'units': 12},
+    {'kind': 'dense', 'units': 24},
     {'kind': 'ReLU'},
-    {'kind': 'dense', 'units': 12},
-    {'kind': 'ReLU'}
 ]
 
 net_topology_pol_fig = [

@@ -17,7 +17,7 @@ def create_config():
 
     # System Basic Setting
     parser.add_argument('--env', type=str, dest="ENV_NAME", default='CartPole-v1', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='Prioritized_DQN_Agent', help='which kind of agent')
+    parser.add_argument('--agent', type=str, default='Double_DQN_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=100, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
@@ -25,7 +25,7 @@ def create_config():
     parser.add_argument('--disable_cudnn', type=bool, default=False, help='whether to disable cudnn')
 
     # RL General Setting
-    parser.add_argument("--gamma", type=float, default=0.995, help="discount factor")
+    parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
     parser.add_argument("--lambda", type=float, dest="lam", default=0.98,
                         help="lambda parameter from generalized advantage estimation")
     parser.add_argument("--batch_size_optimizer", type=int, default=256,
@@ -40,7 +40,7 @@ def create_config():
     # Env Setting
     parser.add_argument("--consec_frames", type=int, default=1, help="how many frames to concatenete in a row")
     parser.add_argument("--image_size", type=tuple, default=(84, 84), help="the size of processed frames")
-    parser.add_argument("--running_stat", type=bool, default=True, help="whether to normalize the frames and rewards")
+    parser.add_argument("--running_stat", type=bool, default=False, help="whether to normalize the frames")
     parser.add_argument("--use_mujoco_setting", type=bool, default=False,
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
 
@@ -73,12 +73,12 @@ def create_config():
     parser.add_argument("--batch_size_q", type=int, default=64, help="size of the minibatch in Q learning")
     parser.add_argument("--alpha", type=float, default=0.8, help="factor of the prioritize replay memory")
     parser.add_argument("--beta", type=float, default=0.6, help="factor of the prioritize replay memory")
-    parser.add_argument("--memory_cap", type=int, default=50000, help="size of the replay mempry")
-    parser.add_argument("--ini_epsilon", type=float, default=0.05, help="initial epsilon")
+    parser.add_argument("--memory_cap", type=int, default=2000, help="size of the replay mempry")
+    parser.add_argument("--ini_epsilon", type=float, default=0.4, help="initial epsilon")
     parser.add_argument("--final_epsilon", type=float, default=0.01, help="final epsilon")
-    parser.add_argument("--explore_len", type=float, default=50000, help="length of exploration")
-    parser.add_argument("--rand_explore_len", type=float, default=5000, help="length of random exploration")
-    parser.add_argument("--update_target_every", type=int, default=1000, help="update the target after how many steps")
+    parser.add_argument("--explore_len", type=float, default=10000, help="length of exploration")
+    parser.add_argument("--rand_explore_len", type=float, default=1000, help="length of random exploration")
+    parser.add_argument("--update_target_every", type=int, default=500, help="update the target after how many steps")
 
     return parser.parse_args().__dict__
 

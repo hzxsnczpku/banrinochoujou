@@ -368,11 +368,6 @@ class Adam_Q_Optimizer:
         self.count = 0
         self.get_data = cfg['get_info']
         self.update_target_every = cfg["update_target_every"]
-        self.epochs = cfg["epoches_optimizer"]
-        self.replay_buffer_x = None
-        self.replay_buffer_y = None
-        self.replay_buffer_a = None
-        self.replay_buffer_w = None
 
     def _derive_info(self, observations, y_targ, actions):
         y_pred = self.net(observations).gather(1, actions.long())
@@ -386,29 +381,15 @@ class Adam_Q_Optimizer:
         actions = turn_into_cuda(path["action"])
         weights = turn_into_cuda(path["weights"]) if "weights" in path else None
         y_targ = turn_into_cuda(path['y_targ'])
-        td_err0 = torch.abs(self.net(observations).gather(1, actions.long()) - y_targ)
 
         if self.get_data:
             info_before = self._derive_info(observations, y_targ, actions)
 
-        if self.replay_buffer_x is None:
-            x_train, y_train, a_train, w_train = observations, y_targ, actions, weights
-        else:
-            x_train = torch.cat([observations, self.replay_buffer_x], dim=0)
-            y_train = torch.cat([y_targ, self.replay_buffer_y], dim=0)
-            a_train = torch.cat([actions, self.replay_buffer_a], dim=0)
-            w_train = torch.cat([weights, self.replay_buffer_w], dim=0) if weights is not None else None
-        self.replay_buffer_x = observations
-        self.replay_buffer_y = y_targ
-        self.replay_buffer_a = actions
-        self.replay_buffer_w = weights
-
-        for e in range(self.epochs):
-            td_err = torch.abs(self.net(x_train).gather(1, a_train.long()) - y_train)
-            loss = (td_err.pow(2) * w_train).sum() if w_train is not None else td_err.pow(2).mean()
-            self.net.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+        td_err = torch.abs(self.net(observations).gather(1, actions.long()) - y_targ)
+        loss = (td_err.pow(2) * weights).sum() if weights is not None else td_err.pow(2).mean()
+        self.net.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
         self.count += 1
         if self.count % self.update_target_every == 0:
@@ -416,6 +397,6 @@ class Adam_Q_Optimizer:
 
         if self.get_data:
             info_after = self._derive_info(observations, y_targ, actions)
-            return merge_before_after(info_before, info_after), {"td_err": td_err0.data.cpu().numpy()}
+            return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
 
-        return None, {"td_err": td_err0.data.cpu().numpy()}
+        return None, {"td_err": td_err.data.cpu().numpy()}
