@@ -103,9 +103,7 @@ class ReplayBuffer:
             path["reward"].append(d[3])
             path["not_done"].append(d[4])
         for k in path:
-            path[k] = np_to_var(np.array(path[k]))
-            if len(path[k].size()) == 1:
-                path[k] = path[k].view(-1, 1)
+            path[k] = np.array(path[k])
         return path
 
     def sample(self):

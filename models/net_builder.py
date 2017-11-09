@@ -89,7 +89,7 @@ def make_baseline(optimizer, cfg):
     return baseline
 
 
-def make_q_baseline(optimizer, cfg, double):
+def make_q_baseline(optimizer, cfg):
     ob_space = cfg["observation_space"]
     ac_space = cfg["action_space"]
     assert isinstance(ob_space, Box)
@@ -104,5 +104,5 @@ def make_q_baseline(optimizer, cfg, double):
     if use_cuda:
         net.cuda()
         net_target.cuda()
-    baseline = QValueFunction(net, net_target, optimizer, cfg, double)
+    baseline = QValueFunction(net, net_target, optimizer, cfg)
     return baseline

@@ -360,12 +360,11 @@ class Adam_Optimizer:
 # Adam Q-Learning Optimizer
 # ================================================================
 class Adam_Q_Optimizer:
-    def __init__(self, net, target_net, cfg, double):
+    def __init__(self, net, target_net, cfg):
         self.net = net
         self.target_net = target_net
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_optimizer"])
         self.gamma = cfg["gamma"]
-        self.double = double
         self.count = 0
         self.get_data = cfg['get_info']
         self.update_target_every = cfg["update_target_every"]
@@ -385,18 +384,8 @@ class Adam_Q_Optimizer:
     def __call__(self, path):
         observations = turn_into_cuda(path["observation"])
         actions = turn_into_cuda(path["action"])
-        next_observations = turn_into_cuda(path["next_observation"])
-        rewards = turn_into_cuda(path["reward"])
-        not_dones = turn_into_cuda(path["not_done"])
         weights = turn_into_cuda(path["weights"]) if "weights" in path else None
-
-        if not self.double:
-            y_targ = self.target_net(next_observations).max(dim=1, keepdim=True)[0]
-        else:
-            ty = self.net(next_observations).max(dim=1, keepdim=True)[1]
-            y_targ = self.target_net(next_observations).gather(1, ty.long())
-        y_targ = y_targ * not_dones * self.gamma + rewards
-        y_targ = y_targ.detach()
+        y_targ = turn_into_cuda(path['y_targ'])
 
         if self.get_data:
             info_before = self._derive_info(observations, y_targ, actions)

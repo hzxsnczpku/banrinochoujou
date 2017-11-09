@@ -22,14 +22,17 @@ class ValueFunction:
 
 
 class QValueFunction:
-    def __init__(self, net, target_net, optimizer, cfg, double):
+    def __init__(self, net, target_net, optimizer, cfg):
         self.net = net
         self.target_net = target_net
-        self.optimizer = optimizer(self.net, self.target_net, cfg, double)
+        self.optimizer = optimizer(self.net, self.target_net, cfg)
 
-    def predict(self, ob_no):
-        observations = np_to_var(np.array(ob_no))
-        return self.net(observations).data.cpu().numpy()
+    def predict(self, ob_no, target=False):
+        observations = turn_into_cuda(np_to_var(np.array(ob_no)))
+        if not target:
+            return self.net(observations).data.cpu().numpy()
+        else:
+            return self.target_net(observations).data.cpu().numpy()
 
     def act(self, ob_no):
         return np.argmax(self.predict(ob_no))

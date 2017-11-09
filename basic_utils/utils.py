@@ -42,6 +42,18 @@ def compute_advantage(vf, paths, gamma, lam):
         path["advantage"] = (path["advantage"] - mean) / std
 
 
+def compute_target(qf, path, gamma, double=False):
+    next_observations = path['next_observation']
+    not_dones = path['not_done']
+    rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
+    if not double:
+        y_targ = qf.predict(next_observations, target=True).max(axis=1)
+    else:
+        ty = qf.predict(next_observations).argmax(axis=1)[1]
+        y_targ = qf.predict(next_observations, target=True).gather(1, ty.long())
+    path['y_targ'] = y_targ * not_dones * gamma + rewards
+
+
 class Callback:
     def __init__(self):
         self.counter = 0

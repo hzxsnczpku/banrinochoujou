@@ -67,11 +67,12 @@ class Policy_Based_Agent(BasicAgent):
 class Value_Based_Agent(BasicAgent):
     def __init__(self, optimizer, usercfg, double=False, priorized=False):
         self.cfg = usercfg
-        self.baseline = make_q_baseline(optimizer, usercfg, double)
+        self.baseline = make_q_baseline(optimizer, usercfg)
         self.epsilon = self.cfg["ini_epsilon"]
         self.final_epsilon = self.cfg["final_epsilon"]
         self.epsilon_decay = (self.epsilon - self.final_epsilon)/self.cfg["explore_len"]
         self.action_dim = self.cfg["action_space"].n
+        self.double = double
         if not priorized:
             self.memory = ReplayBuffer(self.cfg)
         else:
@@ -89,14 +90,17 @@ class Value_Based_Agent(BasicAgent):
     def memorize(self, tuple):
         self.memory.add(tuple)
 
-    def update(self, paths=None):
-        if paths is None:
+    def update(self, path=None):
+        if path is None:
             if len(self.memory) > self.cfg["rand_explore_len"]:
-                paths = self.memory.sample()
+                path = self.memory.sample()
             else:
                 return None
-        vf_stats, info = self.baseline.fit(paths)
-        self.memory.update_priorities(paths["idxes"], info["td_err"])
+        compute_target(self.baseline, path, gamma=self.cfg["gamma"], double=self.double)
+        keys = ["observation", "action", "y_targ"]
+        processed_path = pre_process_path([path], keys)
+        vf_stats, info = self.baseline.fit(processed_path)
+        self.memory.update_priorities(path["idxes"], info["td_err"])
         vf_stats["epsilon"] = self.epsilon
         return [("q", vf_stats)]
 

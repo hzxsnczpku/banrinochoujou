@@ -73,10 +73,10 @@ def create_config():
     parser.add_argument("--batch_size_q", type=int, default=64, help="size of the minibatch in Q learning")
     parser.add_argument("--alpha", type=float, default=0.8, help="factor of the prioritize replay memory")
     parser.add_argument("--beta", type=float, default=0.6, help="factor of the prioritize replay memory")
-    parser.add_argument("--memory_cap", type=int, default=500000, help="size of the replay mempry")
+    parser.add_argument("--memory_cap", type=int, default=50000, help="size of the replay mempry")
     parser.add_argument("--ini_epsilon", type=float, default=0.05, help="initial epsilon")
     parser.add_argument("--final_epsilon", type=float, default=0.01, help="final epsilon")
-    parser.add_argument("--explore_len", type=float, default=1000000, help="length of exploration")
+    parser.add_argument("--explore_len", type=float, default=50000, help="length of exploration")
     parser.add_argument("--rand_explore_len", type=float, default=5000, help="length of random exploration")
     parser.add_argument("--update_target_every", type=int, default=1000, help="update the target after how many steps")
 
