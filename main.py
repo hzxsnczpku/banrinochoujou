@@ -25,7 +25,7 @@ def create_config():
     parser.add_argument('--disable_cudnn', type=bool, default=False, help='whether to disable cudnn')
 
     # RL General Setting
-    parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
+    parser.add_argument("--gamma", type=float, default=0.995, help="discount factor")
     parser.add_argument("--lambda", type=float, dest="lam", default=0.98,
                         help="lambda parameter from generalized advantage estimation")
     parser.add_argument("--batch_size_optimizer", type=int, default=256,
@@ -36,7 +36,7 @@ def create_config():
                         help='epochs of a single updating process of the policy')
     parser.add_argument('--epoches_optimizer', type=int, default=10,
                         help='epochs of a single updating process of the baseline')
-    parser.add_argument('--dist', type=str, default='DiagBeta', help='kind of distribution in continuous action space')
+    parser.add_argument('--dist', type=str, default='DiagGauss', help='kind of distribution in continuous action space')
 
     # Env Setting
     parser.add_argument("--consec_frames", type=int, default=1, help="how many frames to concatenete in a row")
