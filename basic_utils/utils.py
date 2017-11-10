@@ -89,8 +89,9 @@ def add_episode_stats(stats, paths):
 
 
 def add_prefixed_stats(stats, prefix, d):
-    for k in d:
-        stats[prefix + "_" + k] = d[k]
+    if d is not None:
+        for k in d:
+            stats[prefix + "_" + k] = d[k]
 
 
 use_cuda = torch.cuda.is_available()
@@ -147,10 +148,6 @@ def turn_into_cuda(var):
 
 
 def log_gamma(xx):
-    if isinstance(xx, Variable):
-        ttype = xx.data.type()
-    elif isinstance(xx, torch.Tensor):
-        ttype = xx.type()
     gamma_coeff = [
         76.18009172947146,
         -86.50532032941677,
@@ -164,19 +161,29 @@ def log_gamma(xx):
     x = xx - 1.0
     t = x + 5.5
     t = t - (x + 0.5) * torch.log(t)
-    ser = Variable(torch.ones(x.size()).type(ttype)) * magic1
+    ser = Variable(torch.ones(x.size())) * magic1
     for c in gamma_coeff:
         x = x + 1.0
         ser = ser + torch.pow(x / c, -1)
     return torch.log(ser * magic2) - t
 
 
-def log_beta(t):
-    assert t.dim() in (1, 2)
-    if t.dim() == 1:
-        numer = torch.sum(log_gamma(t))
-        denom = log_gamma(torch.sum(t))
-    else:
-        numer = torch.sum(log_gamma(t), 1)
-        denom = log_gamma(torch.sum(t, 1))
-    return numer - denom
+def digamma(xx):
+    gamma_coeff = [
+        76.18009172947146,
+        -86.50532032941677,
+        24.01409824083091,
+        -1.231739572450155,
+        0.1208650973866179e-2,
+        -0.5395239384953e-5,
+    ]
+    magic1 = 1.000000000190015
+    x = xx - 1.0
+    t = 5/(x+5.5) - torch.log(x+5.5)
+    ser = Variable(torch.ones(x.size()), requires_grad=True) * magic1
+    ser_p = Variable(torch.zeros(x.size()), requires_grad=True)
+    for c in gamma_coeff:
+        x = x + 1.0
+        ser = ser + torch.pow(x / c, -1)
+        ser_p = ser_p - c/(x*x)
+    return ser_p/ser - t

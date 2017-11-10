@@ -110,6 +110,7 @@ class Adam_Updater:
     def __init__(self, net, probtype, cfg):
         self.net = net
         self.probtype = probtype
+        self.lr = cfg["lr_updater"]
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_updater"])
         self.kl_target = cfg["kl_target"]
         self.get_info = cfg["get_info"]
@@ -119,7 +120,7 @@ class Adam_Updater:
         prob = self.net(observations)
         surr = -(self.probtype.loglikelihood(actions, prob) * advantages).mean()
         losses = {"surr": surr.data[0], "kl": self.probtype.kl(fixed_dist, prob).mean().data[0],
-                  "ent": self.probtype.entropy(prob).mean().data[0]}
+                  "ent": self.probtype.entropy(prob).mean().data[0], 'lr': self.lr}
 
         return losses
 
@@ -137,6 +138,15 @@ class Adam_Updater:
         self.net.zero_grad()
         surr.backward()
         self.optimizer.step()
+
+        prob = self.net(observations)
+        kl = self.probtype.kl(old_prob, prob).mean().data[0]
+        if kl > 4 * self.kl_target:
+            self.lr /= 1.5
+            self.optimizer = optim.Adam(params=self.net.parameters(), lr=self.lr)
+        if kl < 0.25 * self.kl_target:
+            self.lr *= 1.5
+            self.optimizer = optim.Adam(params=self.net.parameters(), lr=self.lr)
 
         if self.get_info:
             info_after = self._derive_info(observations, actions, advantages, old_prob)

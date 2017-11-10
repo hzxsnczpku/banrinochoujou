@@ -36,6 +36,9 @@ class Policy_Based_Agent(BasicAgent):
     def act(self, ob_no):
         return self.policy.act(ob_no, stochastic=self.stochastic)
 
+    def process_act(self, a):
+        return self.policy.probtype.process_act(a)
+
     def update(self, paths):
         compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
         keys = ["observation", "action", "advantage", "prob", "return"]

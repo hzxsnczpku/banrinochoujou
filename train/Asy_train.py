@@ -87,7 +87,7 @@ def run(cfg, require_q, recv_q, process_id=0):
             data["action"].append(action[0])
             for k in info:
                 data[k].append(info[k])
-            ob, rew, done, info = env.step(action[0])
+            ob, rew, done, info = env.step(agent.process_act(action[0]))
             for k in info:
                 data[k].append(info[k])
             data["reward"].append(rew)

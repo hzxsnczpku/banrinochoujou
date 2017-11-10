@@ -28,6 +28,14 @@ class Add_One(nn.Module):
         return x+1
 
 
+class Softplus(nn.Module):
+    def __init__(self):
+        super(Softplus, self).__init__()
+
+    def forward(self, x):
+        return (1 + x.exp()).log()
+
+
 def get_layer(des, inshp):
     if des['kind'] == 'conv':
         return nn.Conv2d(in_channels=inshp, out_channels=des["filters"], kernel_size=des["ker_size"],

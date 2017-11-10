@@ -16,8 +16,8 @@ def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='CartPole-v1', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='Double_DQN_Agent', help='which kind of agent')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Pendulum-v0', help='the name of the environment')
+    parser.add_argument('--agent', type=str, default='TRPO_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=100, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
@@ -36,6 +36,7 @@ def create_config():
                         help='epochs of a single updating process of the policy')
     parser.add_argument('--epoches_optimizer', type=int, default=10,
                         help='epochs of a single updating process of the baseline')
+    parser.add_argument('--dist', type=str, default='DiagBeta', help='kind of distribution in continuous action space')
 
     # Env Setting
     parser.add_argument("--consec_frames", type=int, default=1, help="how many frames to concatenete in a row")

@@ -1,6 +1,6 @@
 from torch import nn
 from gym.spaces import Box, Discrete
-from models.policies import DiagGauss, Categorical, StochPolicy
+from models.policies import DiagGauss, Categorical, StochPolicy, DiagBeta
 from models.baselines import ValueFunction, QValueFunction
 from basic_utils.utils import *
 from basic_utils.layers import *
@@ -63,11 +63,12 @@ def make_policy(updater, cfg):
     else:
         net_topology_pol = cfg["net_topology_pol_fig"]
     if isinstance(ac_space, Box):
-        outdim = ac_space.shape[0]
-        probtype = DiagGauss(outdim)
+        if cfg['dist'] == 'DiagGauss':
+            probtype = DiagGauss(ac_space)
+        elif cfg['dist'] == 'DiagBeta':
+            probtype = DiagBeta(ac_space)
     elif isinstance(ac_space, Discrete):
-        outdim = ac_space.n
-        probtype = Categorical(outdim)
+        probtype = Categorical(ac_space)
     net = MLPs_pol(ob_space, net_topology_pol, probtype.output_layers)
     if use_cuda:
         net.cuda()
