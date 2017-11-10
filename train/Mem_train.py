@@ -48,7 +48,7 @@ class Mem_train:
         u_stats = self.agent.update()
         if u_stats is not None:
             self.stats.append(u_stats[0])
-            if len(self.datas) >= 1:
+            if len(self.datas) >= self.cfg['print_every']:
                 stats = OrderedDict()
                 merged_dict = defaultdict(list)
                 for d in self.stats:

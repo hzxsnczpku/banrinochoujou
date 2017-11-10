@@ -16,8 +16,8 @@ def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Pendulum-v0', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='TRPO_Agent', help='which kind of agent')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='CartPole-v1', help='the name of the environment')
+    parser.add_argument('--agent', type=str, default='DQN_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=100, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
@@ -80,6 +80,7 @@ def create_config():
     parser.add_argument("--explore_len", type=float, default=10000, help="length of exploration")
     parser.add_argument("--rand_explore_len", type=float, default=1000, help="length of random exploration")
     parser.add_argument("--update_target_every", type=int, default=500, help="update the target after how many steps")
+    parser.add_argument("--print_every", type=int, default=10, help="print information after how many episodes")
 
     return parser.parse_args().__dict__
 
