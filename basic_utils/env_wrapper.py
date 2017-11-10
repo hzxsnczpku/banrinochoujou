@@ -105,5 +105,8 @@ class Env_wrapper:
         info["observation_raw"] = history
         return history_normalized, r, done, info
 
+    def render(self):
+        self.env.render()
+
     def close(self):
         self.env.close()

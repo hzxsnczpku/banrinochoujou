@@ -82,6 +82,8 @@ def run(cfg, require_q, recv_q, process_id=0):
             data[k].append(info[k])
         done = False
         while not done:
+            if cfg['render'] and process_id==0:
+                env.render()
             data["observation"].append(ob)
             action, info = agent.act(ob.reshape((1,) + ob.shape))
             data["action"].append(action[0])

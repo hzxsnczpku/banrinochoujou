@@ -16,8 +16,8 @@ def create_config():
     parser = argparse.ArgumentParser(description='Basic settings for Pytorch implemented RL.')
 
     # System Basic Setting
-    parser.add_argument('--env', type=str, dest="ENV_NAME", default='CartPole-v1', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='DQN_Agent', help='which kind of agent')
+    parser.add_argument('--env', type=str, dest="ENV_NAME", default='Pendulum-v0', help='the name of the environment')
+    parser.add_argument('--agent', type=str, default='TRPO_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=100, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
@@ -25,7 +25,7 @@ def create_config():
     parser.add_argument('--disable_cudnn', type=bool, default=False, help='whether to disable cudnn')
 
     # RL General Setting
-    parser.add_argument("--gamma", type=float, default=0.995, help="discount factor")
+    parser.add_argument("--gamma", type=float, default=0.99, help="discount factor")
     parser.add_argument("--lambda", type=float, dest="lam", default=0.98,
                         help="lambda parameter from generalized advantage estimation")
     parser.add_argument("--batch_size_optimizer", type=int, default=256,
@@ -37,6 +37,7 @@ def create_config():
     parser.add_argument('--epoches_optimizer', type=int, default=10,
                         help='epochs of a single updating process of the baseline')
     parser.add_argument('--dist', type=str, default='DiagGauss', help='kind of distribution in continuous action space')
+    parser.add_argument("--kl_target", type=float, default=0.003, help="KL divergence between old and new policy")
 
     # Env Setting
     parser.add_argument("--consec_frames", type=int, default=1, help="how many frames to concatenete in a row")
@@ -44,6 +45,7 @@ def create_config():
     parser.add_argument("--running_stat", type=bool, default=False, help="whether to normalize the frames")
     parser.add_argument("--use_mujoco_setting", type=bool, default=False,
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
+    parser.add_argument('--render', type=bool, default=True, help='whether to render the environment')
 
     # Asynchronous Setting
     parser.add_argument('--timesteps_per_batch', type=int, default=5000,
@@ -56,11 +58,8 @@ def create_config():
     parser.add_argument("--cg_damping", type=float, default=1e-3,
                         help="Add multiple of the identity to Fisher matrix during CG")
     parser.add_argument("--cg_iters", type=int, default=10, help="number of iterations in cg")
-    parser.add_argument("--max_kl", type=float, default=1e-2, help="KL divergence between old and new policy")
 
     # PPO Setting
-    parser.add_argument("--kl_target", type=float, default=0.003,
-                        help="KL divergence between old and new policy(used in PPO)")
     parser.add_argument("--kl_cutoff_coeff", type=float, default=50.0, help="penalty factor when kl is large")
     parser.add_argument("--clip_epsilon_init", type=float, default=0.2, help="factor of clipped loss")
     parser.add_argument("--beta_init", type=float, default=1.0, help="initialization of beta")

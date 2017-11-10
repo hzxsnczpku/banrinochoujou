@@ -10,7 +10,7 @@ class TRPO_Updater:
     def __init__(self, net, probtype, cfg):
         self.net = net
         self.probtype = probtype
-        self.max_kl = cfg["max_kl"]
+        self.max_kl = cfg["kl_target"]
         self.cg_damping = cfg["cg_damping"]
         self.cg_iters = cfg["cg_iters"]
         self.get_info = cfg["get_info"]
