@@ -187,3 +187,9 @@ def digamma(xx):
         ser = ser + torch.pow(x / c, -1)
         ser_p = ser_p - c/(x*x)
     return ser_p/ser - t
+
+
+def merge_dict(path, single_trans):
+    for k in single_trans:
+        path[k] += single_trans[k]
+    return 1 - single_trans['not_done'][0]

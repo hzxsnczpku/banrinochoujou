@@ -56,6 +56,32 @@ class Probtype:
         return a
 
 
+class Deterministic(Probtype):
+    def __init__(self, ac_space):
+        self.d = ac_space.shape[0]
+
+    def likelihood(self, a, prob):
+        pass
+
+    def loglikelihood(self, a, prob):
+        pass
+
+    def kl(self, prob0, prob1):
+        pass
+
+    def entropy(self, prob0):
+        pass
+
+    def sample(self, prob):
+        return prob
+
+    def maxprob(self, prob):
+        return prob
+
+    def output_layers(self, oshp):
+        return [nn.Linear(oshp, self.d)]
+
+
 class Categorical(Probtype):
     def __init__(self, ac_space):
         self.n = ac_space.n

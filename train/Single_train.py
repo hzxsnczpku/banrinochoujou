@@ -1,9 +1,3 @@
-import os
-
-used_gpu = '0'
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = used_gpu
-
 import time
 from basic_utils.env_wrapper import Scaler
 from basic_utils.layers import mujoco_layer_designer

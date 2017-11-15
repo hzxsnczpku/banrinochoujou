@@ -17,7 +17,7 @@ def create_config():
 
     # System Basic Setting
     parser.add_argument('--env', type=str, dest="ENV_NAME", default='Pendulum-v0', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='TRPO_Agent', help='which kind of agent')
+    parser.add_argument('--agent', type=str, default='PPO_adapted_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=100, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
@@ -45,7 +45,7 @@ def create_config():
     parser.add_argument("--running_stat", type=bool, default=False, help="whether to normalize the frames")
     parser.add_argument("--use_mujoco_setting", type=bool, default=False,
                         help="whether to automatically design the net architecture and lr for the mujoco environment")
-    parser.add_argument('--render', type=bool, default=True, help='whether to render the environment')
+    parser.add_argument('--render', type=bool, default=False, help='whether to render the environment')
 
     # Asynchronous Setting
     parser.add_argument('--timesteps_per_batch', type=int, default=5000,
@@ -86,6 +86,7 @@ def create_config():
 
 if __name__ == "__main__":
     cfg = create_config()
+    cfg["timesteps_per_batch_worker"] = cfg["timesteps_per_batch"] / cfg["n_worker"]
     if cfg['disable_cudnn']:
         torch.backends.cudnn.enabled = False
     if cfg['agent'] in POLICY_BASED_AGENT:

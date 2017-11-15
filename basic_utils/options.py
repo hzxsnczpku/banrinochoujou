@@ -23,6 +23,25 @@ net_topology_q_vec = [
     {'kind': 'ReLU'},
 ]
 
+net_topology_pol_det_vec = [
+    {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
+]
+
+net_topology_q_det_vec = [
+    {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
+]
+
+net_topology_merge_det_vec = [
+    {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
+    {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
+]
+
+net_topology_det_vec = [net_topology_pol_det_vec, net_topology_q_det_vec, net_topology_merge_det_vec]
+
 net_topology_pol_fig = [
     {'kind': 'conv', 'filters': 32, 'stride': 4, 'ker_size': 8},
     {'kind': 'Tanh'},

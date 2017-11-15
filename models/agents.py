@@ -1,6 +1,6 @@
 from basic_utils.options import *
 from basic_utils.utils import update_default_config, compute_advantage
-from models.net_builder import make_policy, make_baseline, make_q_baseline
+from models.net_builder import make_policy, make_baseline, make_q_baseline, make_policy_deterministic, make_q_baseline_deterministic
 import numpy as np
 from models.optimizers import *
 from basic_utils.replay_memory import *
@@ -38,6 +38,45 @@ class Policy_Based_Agent(BasicAgent):
 
     def process_act(self, a):
         return self.policy.probtype.process_act(a)
+
+    def update(self, paths):
+        compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
+        keys = ["observation", "action", "advantage", "prob", "return"]
+        processed_path = pre_process_path(paths, keys)
+        pol_stats = self.policy.update(processed_path)
+        vf_stats = self.baseline.fit(processed_path)
+        a = [("v", vf_stats), ("pol", pol_stats)]
+        return a
+
+    def save_model(self, name):
+        self.policy.save_model(name)
+        self.baseline.save_model(name)
+
+    def load_model(self, name):
+        self.policy.load_model(name)
+        self.baseline.load_model(name)
+
+    def get_params(self):
+        return self.policy.net.state_dict(), self.baseline.net.state_dict()
+
+    def set_params(self, state_dicts):
+        self.policy.net.load_state_dict(state_dicts[0])
+        self.baseline.net.load_state_dict(state_dicts[1])
+
+
+# ================================================================
+# Deterministic Policy Based Agent
+# ================================================================
+class Deterministic_Policy_Based_Agent(BasicAgent):
+    def __init__(self, updater, optimizer, usercfg):
+        self.cfg = usercfg
+        self.policy, self.target_policy = make_policy_deterministic(updater, self.cfg)
+        self.baseline = make_q_baseline_deterministic(optimizer, self.cfg)
+        self.memory = ReplayBuffer(self.cfg)
+        self.stochastic = True
+
+    def act(self, ob_no):
+        return self.policy.act(ob_no, stochastic=self.stochastic)
 
     def update(self, paths):
         compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
