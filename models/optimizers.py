@@ -326,7 +326,7 @@ class Adam_Optimizer:
         y_pred = self.net(observations)
         explained_var = 1 - torch.var(y_targ - y_pred) / torch.var(y_targ)
         loss = (y_targ - y_pred).pow(2).mean()
-        info = {'explained_variance': explained_var.data[0], 'loss': loss.data[0]}
+        info = {'explained_var': explained_var.data[0], 'loss': loss.data[0]}
         return info
 
     def __call__(self, path):
@@ -383,7 +383,7 @@ class Adam_Q_Optimizer:
         y_pred = self.net(observations).gather(1, actions.long())
         explained_var = 1 - torch.var(y_targ - y_pred) / torch.var(y_targ)
         loss = (y_targ - y_pred).pow(2).mean()
-        info = {'explained_variance': explained_var.data[0], 'loss': loss.data[0]}
+        info = {'explained_var': explained_var.data[0], 'loss': loss.data[0]}
         return info
 
     def __call__(self, path):

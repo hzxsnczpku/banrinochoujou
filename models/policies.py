@@ -12,9 +12,9 @@ class StochPolicy:
         ob = turn_into_cuda(np_to_var(ob))
         prob = self.net(ob).data.cpu().numpy()
         if stochastic:
-            return self.probtype.sample(prob), {"prob": prob[0]}
+            return self.probtype.sample(prob)
         else:
-            return self.probtype.maxprob(prob), {"prob": prob[0]}
+            return self.probtype.maxprob(prob)
 
     def update(self, batch):
         return self.updater(batch)

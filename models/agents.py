@@ -41,7 +41,7 @@ class Policy_Based_Agent(BasicAgent):
 
     def update(self, paths):
         compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
-        keys = ["observation", "action", "advantage", "prob", "return"]
+        keys = ["observation", "action", "advantage", "return"]
         processed_path = pre_process_path(paths, keys)
         pol_stats = self.policy.update(processed_path)
         vf_stats = self.baseline.fit(processed_path)
@@ -80,7 +80,7 @@ class Deterministic_Policy_Based_Agent(BasicAgent):
 
     def update(self, paths):
         compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
-        keys = ["observation", "action", "advantage", "prob", "return"]
+        keys = ["observation", "action", "advantage", "return"]
         processed_path = pre_process_path(paths, keys)
         pol_stats = self.policy.update(processed_path)
         vf_stats = self.baseline.fit(processed_path)
@@ -115,10 +115,6 @@ class Value_Based_Agent(BasicAgent):
         self.epsilon_decay = (self.epsilon - self.final_epsilon)/self.cfg["explore_len"]
         self.action_dim = self.cfg["action_space"].n
         self.double = double
-        if not priorized:
-            self.memory = ReplayBuffer(self.cfg)
-        else:
-            self.memory = PrioritizedReplayBuffer(self.cfg)
 
     def act(self, ob_no):
         if np.random.rand() > self.epsilon:
@@ -129,24 +125,22 @@ class Value_Based_Agent(BasicAgent):
             self.epsilon -= self.epsilon_decay
         return action
 
-    def memorize(self, tuple):
-        self.memory.add(tuple)
-
     def update(self, path=None):
         if path is None:
-            if len(self.memory) > self.cfg["rand_explore_len"]:
-                path = self.memory.sample()
-            else:
-                return None
+            return None
         compute_target(self.baseline, path, gamma=self.cfg["gamma"], double=self.double)
         keys = ["observation", "action", "y_targ"]
         processed_path = pre_process_path([path], keys)
         if 'weights' in path:
             processed_path['weights'] = path['weights']
         vf_stats, info = self.baseline.fit(processed_path)
-        self.memory.update_priorities(path["idxes"], info["td_err"])
-        vf_stats["epsilon"] = self.epsilon
         return [("q", vf_stats)]
+
+    def get_params(self):
+        return self.baseline.net.state_dict()
+
+    def set_params(self, state_dict):
+        self.baseline.net.load_state_dict(state_dict)
 
     def save_model(self, name):
         self.baseline.save_model(name)
@@ -172,7 +166,7 @@ def get_agent(cfg):
         agent = Prioritized_DQN_Agent(cfg)
     elif cfg["agent"] == "Prioritized_Double_DQN_Agent":
         agent = Prioritized_Double_DQN_Agent(cfg)
-    return agent, cfg
+    return agent
 
 
 # ================================================================
