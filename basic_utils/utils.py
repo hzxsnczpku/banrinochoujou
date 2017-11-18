@@ -170,6 +170,14 @@ def set_flat_params_to(model, flat_params):
         prev_ind += flat_size
 
 
+def set_flat_grads_to(model, flat_grads):
+    prev_ind = 0
+    for param in model.parameters():
+        flat_size = int(np.prod(list(param.size())))
+        param.grad = Variable(flat_grads[prev_ind:prev_ind + flat_size].view(param.size()))
+        prev_ind += flat_size
+
+
 def get_env_info(cfg):
     env = Env_wrapper(cfg)
     cfg["observation_space"] = env.observation_space
@@ -244,3 +252,7 @@ def merge_train_data(u_stats):
             merged_dicts[di][k] = np.mean(merged_dicts[di][k])
         re.append((di, merged_dicts[di]))
     return re
+
+
+def sign(k_id):
+    return -1. if k_id % 2 == 0 else 1.

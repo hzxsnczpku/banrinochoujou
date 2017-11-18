@@ -310,6 +310,44 @@ class PPO_clip_Updater:
 
 
 # ================================================================
+# Evolution Updater
+# ================================================================
+class Evolution_Updater:
+    def __init__(self, net, probtype, cfg):
+        self.cfg = cfg
+        self.net = net
+        self.n_kid = cfg['n_kid']
+        self.optimizer = optim.SGD(self.net.parameters(), lr=cfg["ES_lr"], momentum=0.9)
+        self.get_info = cfg["get_info"]
+        base = self.n_kid * 2
+        rank = np.arange(1, base + 1)
+        util_ = np.maximum(0, np.log(base / 2 + 1) - np.log(rank))
+        self.utility = util_ / util_.sum() - 1 / base
+
+    def __call__(self, path):
+        noise_seed = path[0]['seed']
+        path_info = [p['reward_raw'] for p in path]
+        path_index = [p['index'] for p in path]
+        total_reward = np.zeros((2 * self.n_kid,))
+        for i in range(len(path_index)):
+            total_reward[path_index[i]] += np.sum(path_info[i])
+
+        kids_rank = np.argsort(total_reward)[::-1]
+
+        flat_params = get_flat_params_from(self.net).cpu().numpy()
+        cumulative_update = np.zeros_like(flat_params)
+        for ui, k_id in enumerate(kids_rank):
+            np.random.seed(noise_seed[k_id])  # reconstruct noise using seed
+            cumulative_update += self.utility[ui] * sign(k_id) * np.random.randn(flat_params.size)
+        cumulative_update /= -2*self.n_kid*self.cfg['sigma']
+        self.net.zero_grad()
+        set_flat_grads_to(self.net, turn_into_cuda(torch.from_numpy(cumulative_update)))
+        self.optimizer.step()
+
+        return {}
+
+
+# ================================================================
 # Adam Optimizer
 # ================================================================
 class Adam_Optimizer:

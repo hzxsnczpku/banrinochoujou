@@ -45,8 +45,7 @@ class Policy_Based_Agent(BasicAgent):
         processed_path = pre_process_path(paths, keys)
         pol_stats = self.policy.update(processed_path)
         vf_stats = self.baseline.fit(processed_path)
-        a = [("v", vf_stats), ("pol", pol_stats)]
-        return a
+        return [("v", vf_stats), ("pol", pol_stats)], {}
 
     def save_model(self, name):
         self.policy.save_model(name)
@@ -62,6 +61,39 @@ class Policy_Based_Agent(BasicAgent):
     def set_params(self, state_dicts):
         self.policy.net.load_state_dict(state_dicts[0])
         self.baseline.net.load_state_dict(state_dicts[1])
+
+
+# ================================================================
+#  Evolution Strategy Based Agent
+# ================================================================
+class Evolution_Based_Agent(BasicAgent):
+    def __init__(self, updater, usercfg):
+        self.cfg = usercfg
+        self.policy = make_policy(updater, self.cfg)
+        self.n_kid = self.cfg['n_kid']
+        self.stochastic = True
+
+    def act(self, ob_no):
+        return self.policy.act(ob_no, stochastic=self.stochastic)
+
+    def process_act(self, a):
+        return self.policy.probtype.process_act(a)
+
+    def update(self, paths):
+        pol_stats = self.policy.update(paths)
+        return [("pol", pol_stats)], {}
+
+    def save_model(self, name):
+        self.policy.save_model(name)
+
+    def load_model(self, name):
+        self.policy.load_model(name)
+
+    def get_params(self):
+        return get_flat_params_from(self.policy.net)
+
+    def set_params(self, flat_params):
+        set_flat_params_to(self.policy.net, flat_params)
 
 
 # ================================================================
@@ -107,7 +139,7 @@ class Deterministic_Policy_Based_Agent(BasicAgent):
 # Value Based Agent
 # ================================================================
 class Value_Based_Agent(BasicAgent):
-    def __init__(self, optimizer, usercfg, double=False, priorized=False):
+    def __init__(self, optimizer, usercfg, double=False):
         self.cfg = usercfg
         self.baseline = make_q_baseline(optimizer, usercfg)
         self.epsilon = self.cfg["ini_epsilon"]
@@ -127,14 +159,14 @@ class Value_Based_Agent(BasicAgent):
 
     def update(self, path=None):
         if path is None:
-            return None
+            return None, None
         compute_target(self.baseline, path, gamma=self.cfg["gamma"], double=self.double)
         keys = ["observation", "action", "y_targ"]
         processed_path = pre_process_path([path], keys)
         if 'weights' in path:
             processed_path['weights'] = path['weights']
         vf_stats, info = self.baseline.fit(processed_path)
-        return [("q", vf_stats)]
+        return [("q", vf_stats)], {'idxes': path["idxes"], 'td_err': info["td_err"]}
 
     def get_params(self):
         return self.baseline.net.state_dict()
@@ -164,8 +196,12 @@ def get_agent(cfg):
         agent = Double_DQN_Agent(cfg)
     elif cfg["agent"] == "Prioritized_DQN_Agent":
         agent = Prioritized_DQN_Agent(cfg)
+        cfg['Prioritized'] = True
     elif cfg["agent"] == "Prioritized_Double_DQN_Agent":
         agent = Prioritized_Double_DQN_Agent(cfg)
+        cfg['Prioritized'] = True
+    elif cfg["agent"] == "Evolution_Agent":
+        agent = Evolution_Agent(cfg)
     return agent
 
 
@@ -219,9 +255,17 @@ class Double_DQN_Agent(Value_Based_Agent):
 # ================================================================
 class Prioritized_DQN_Agent(Value_Based_Agent):
     def __init__(self, usercfg):
-        Value_Based_Agent.__init__(self, Adam_Q_Optimizer, usercfg, priorized=True)
+        Value_Based_Agent.__init__(self, Adam_Q_Optimizer, usercfg)
 
 
 class Prioritized_Double_DQN_Agent(Value_Based_Agent):
     def __init__(self, usercfg):
-        Value_Based_Agent.__init__(self, Adam_Q_Optimizer, usercfg, double=True, priorized=True)
+        Value_Based_Agent.__init__(self, Adam_Q_Optimizer, usercfg, double=True)
+
+
+# ================================================================
+# Evolution Strategies
+# ================================================================
+class Evolution_Agent(Evolution_Based_Agent):
+    def __init__(self, usercfg):
+        Evolution_Based_Agent.__init__(self, Evolution_Updater, usercfg)

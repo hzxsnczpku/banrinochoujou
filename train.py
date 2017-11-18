@@ -19,7 +19,10 @@ class Trainer:
             self.data_generator.set_param(self.agent.get_params())
 
             paths, path_info, extra_info = self.data_generator.derive_data()
-            self.callback.add_update_info(self.agent.update(paths))
+
+            u_stats, info = self.agent.update(paths)
+            self.data_generator.set_info(info)
+            self.callback.add_update_info(u_stats)
             self.callback.add_path_info(path_info, extra_info)
 
             if self.callback.num_batches() >= self.cfg['print_every']:
