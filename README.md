@@ -13,6 +13,7 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 * [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347)
   * clipped surrogate loss
   * adapted surrogate loss
+* [Evolution Strategy](https://arxiv.org/abs/1703.03864)
 
 ### Distributions
 * Discrete
