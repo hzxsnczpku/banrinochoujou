@@ -190,6 +190,14 @@ def turn_into_cuda(var):
     return var.cuda() if use_cuda else var
 
 
+def get_state_dict(file):
+    try:
+        pretrain_state_dict = torch.load(file)
+    except AssertionError:
+        pretrain_state_dict = torch.load(file, map_location=lambda storage, location: storage)
+    return pretrain_state_dict
+
+
 def log_gamma(xx):
     gamma_coeff = [
         76.18009172947146,
