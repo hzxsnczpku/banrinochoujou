@@ -17,11 +17,30 @@ net_topology_v_vec = [
 ]
 
 net_topology_q_vec = [
+    {'kind': 'dense', 'units': 24},
+    {'kind': 'ReLU'},
+    {'kind': 'dense', 'units': 24},
+    {'kind': 'ReLU'},
+]
+
+net_topology_pol_det_vec = [
+    {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
+]
+
+net_topology_q_det_vec = [
+    {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
+]
+
+net_topology_merge_det_vec = [
     {'kind': 'dense', 'units': 64},
     {'kind': 'Tanh'},
     {'kind': 'dense', 'units': 64},
     {'kind': 'Tanh'},
 ]
+
+net_topology_det_vec = [net_topology_pol_det_vec, net_topology_q_det_vec, net_topology_merge_det_vec]
 
 net_topology_pol_fig = [
     {'kind': 'conv', 'filters': 32, 'stride': 4, 'ker_size': 8},
@@ -74,4 +93,4 @@ CLASSICAL_CONTROL = ["CartPole-v0", "CartPole-v1", "Acrobot-v1", "MountainCar-v0
 
 POLICY_BASED_AGENT = ["TRPO_Agent", "A2C_Agent", "PPO_adapted_Agent", "PPO_clip_Agent"]
 
-VALUE_BASED_AGENT = ["DQN_Agent", "Double_DQN_Agent", "Priorized_DQN_Agent", "Priorized_Double_DQN_Agent"]
+VALUE_BASED_AGENT = ["DQN_Agent", "Double_DQN_Agent", "Prioritized_DQN_Agent", "Prioritized_Double_DQN_Agent"]

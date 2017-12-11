@@ -1,4 +1,4 @@
-from basic_utils.layers import ConcatFixedStd
+from basic_utils.layers import ConcatFixedStd, Add_One, Softplus
 from basic_utils.utils import *
 
 
@@ -12,9 +12,9 @@ class StochPolicy:
         ob = turn_into_cuda(np_to_var(ob))
         prob = self.net(ob).data.cpu().numpy()
         if stochastic:
-            return self.probtype.sample(prob), {"prob": prob[0]}
+            return self.probtype.sample(prob)
         else:
-            return self.probtype.maxprob(prob), {"prob": prob[0]}
+            return self.probtype.maxprob(prob)
 
     def update(self, batch):
         return self.updater(batch)
@@ -52,10 +52,39 @@ class Probtype:
     def output_layers(self, oshp):
         raise NotImplementedError
 
+    def process_act(self, a):
+        return a
+
+
+class Deterministic(Probtype):
+    def __init__(self, ac_space):
+        self.d = ac_space.shape[0]
+
+    def likelihood(self, a, prob):
+        pass
+
+    def loglikelihood(self, a, prob):
+        pass
+
+    def kl(self, prob0, prob1):
+        pass
+
+    def entropy(self, prob0):
+        pass
+
+    def sample(self, prob):
+        return prob
+
+    def maxprob(self, prob):
+        return prob
+
+    def output_layers(self, oshp):
+        return [nn.Linear(oshp, self.d)]
+
 
 class Categorical(Probtype):
-    def __init__(self, n):
-        self.n = n
+    def __init__(self, ac_space):
+        self.n = ac_space.n
 
     def likelihood(self, a, prob):
         return prob.gather(1, a.long())
@@ -83,8 +112,8 @@ class Categorical(Probtype):
 
 
 class DiagGauss(Probtype):
-    def __init__(self, d):
-        self.d = d
+    def __init__(self, ac_space):
+        self.d = ac_space.shape[0]
 
     def loglikelihood(self, a, prob):
         mean0 = prob[:, :self.d]
@@ -118,16 +147,18 @@ class DiagGauss(Probtype):
     def output_layers(self, oshp):
         return [nn.Linear(oshp, self.d), ConcatFixedStd(self.d)]
 
-"""
+
 class DiagBeta(Probtype):
-    def __init__(self, d):
-        self.d = d
+    def __init__(self, ac_space):
+        self.d = ac_space.shape[0]
+        self.scale = ac_space.high - ac_space.low
+        self.center = (ac_space.high + ac_space.low)/2
 
     def loglikelihood(self, a, prob):
         prob = prob.view(-1, self.d, 2)
-        lbeta = torch.lgamma(prob[:,:,0]) + torch.lgamma(prob[:,:,1]) - torch.lgamma(prob[:,:,0]+prob[:,:,1])
-        lp = -lbeta + (prob[:, :, 0] - 1) * a.log() + (prob[:, :, 1] - 1) * (1 - a).log()
-        lp = lp.sum(dim=-1)
+        lbeta = log_gamma(prob[:, :, 0]) + log_gamma(prob[:, :, 1]) - log_gamma(prob[:, :, 0] + prob[:, :, 1])
+        lp = -lbeta + (prob[:, :, 0] - 1) * torch.log(a) + (prob[:, :, 1] - 1) * torch.log(1 - a)
+        lp = lp.sum(dim=-1, keepdim=True)
         return lp
 
     def likelihood(self, a, prob):
@@ -140,20 +171,22 @@ class DiagBeta(Probtype):
         beta0 = prob0[:, :, 1]
         alpha1 = prob1[:, :, 0]
         beta1 = prob1[:, :, 1]
-        lbeta0 = torch.lgamma(alpha0) + torch.lgamma(beta0) - torch.lgamma(alpha0 + beta0)
-        lbeta1 = torch.lgamma(alpha1) + torch.lgamma(beta1) - torch.lgamma(alpha1 + beta1)
-        kl = -lbeta0 + lbeta1 + (alpha0 - alpha1) * (
-            tf.digamma(alpha0) - tf.digamma(alpha0 + beta0)
-        ) + (beta0 - beta1) * (tf.digamma(beta0) - tf.digamma(alpha0 + beta0))
-        kl = kl.sum(axis=-1)
+        lbeta0 = log_gamma(alpha0) + log_gamma(beta0) - log_gamma(alpha0 + beta0)
+        lbeta1 = log_gamma(alpha1) + log_gamma(beta1) - log_gamma(alpha1 + beta1)
+        kl = -lbeta0 + lbeta1 + (alpha0 - alpha1) * (digamma(alpha0) - digamma(alpha0 + beta0)
+        ) + (beta0 - beta1) * (digamma(beta0) - digamma(alpha0 + beta0))
+        kl = kl.sum(dim=-1)
         return kl
 
     def entropy(self, prob):
-        prob = tf.reshape(prob, shape=(-1, self.d, 2))
-        ent = -tf.lbeta(prob) + (prob[:, :, 0] - 1) * (tf.digamma(
-            prob[:, :, 0]) - tf.digamma(prob[:, :, 0] + prob[:, :, 1])) + (prob[:, :, 1] - 1) * (tf.digamma(
-            prob[:, :, 1]) - tf.digamma(prob[:, :, 0] + prob[:, :, 1]))
-        ent = tf.reduce_sum(ent, axis=-1)
+        prob = prob.view(-1, self.d, 2)
+        alpha = prob[:, :, 0]
+        beta = prob[:, :, 1]
+        lbeta = log_gamma(alpha) + log_gamma(beta) - log_gamma(alpha + beta)
+        ent = -lbeta + (prob[:, :, 0] - 1) * (digamma(
+            prob[:, :, 0]) - digamma(prob[:, :, 0] + prob[:, :, 1])) + (prob[:, :, 1] - 1) * (digamma(
+            prob[:, :, 1]) - digamma(prob[:, :, 0] + prob[:, :, 1]))
+        ent = ent.sum(dim=-1)
         return ent
 
     def sample(self, prob):
@@ -162,5 +195,9 @@ class DiagBeta(Probtype):
         beta = prob[:, :, 1]
         return np.random.beta(alpha, beta)
 
-    def output_layers(self):
-        return Dense(2 * self.d, activation="softplus"), Lambda(lambda x: x + 1)"""
+    def process_act(self, a):
+        a = a - 0.5
+        return a * self.scale + self.center
+
+    def output_layers(self, oshp):
+        return [nn.Linear(oshp, 2 * self.d), Softplus(), Add_One()]

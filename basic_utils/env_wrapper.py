@@ -4,6 +4,8 @@ from skimage.color import rgb2gray
 from skimage.transform import resize
 from collections import deque
 from gym.spaces import Box
+import multiprocessing as mp
+from multiprocessing import Queue
 
 
 class Scaler(object):
@@ -46,9 +48,10 @@ class Env_wrapper:
         if self.ob_len > 1:
             self.observation_space = Box(shape=(self.consec_frames,) + self.image_size, low=0, high=1)
         else:
-            self.observation_space = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames,), low=0, high=1)
+            self.observation_space = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames + 1,), low=0, high=1)
         self.action_space = self.env.action_space
 
+        self.timestep = 0
         self.running_stat = cfg["running_stat"]
         self.offset = None
         self.scale = None
@@ -68,6 +71,7 @@ class Env_wrapper:
 
     def reset(self):
         ob = self.env.reset()
+        self.timestep = 0
         if self.ob_len > 1:
             ob = self._process(ob)
         for i in range(self.consec_frames):
@@ -75,12 +79,18 @@ class Env_wrapper:
         history = np.concatenate(self.states, axis=-1)
         if self.ob_len > 1:
             history = np.transpose(history, (2, 0, 1))
-        info={"observation_raw": history}
+
         history_normalized = self._normalize_ob(history)
+        if self.ob_len == 1:
+            history = np.append(history, [self.timestep])
+            history_normalized = np.append(history_normalized, [self.timestep])
+
+        info = {"observation_raw": history}
         return history_normalized, info
 
     def step(self, action):
         ob, r, done, info = self.env.step(action)
+        self.timestep += 1e-3
         if self.ob_len > 1:
             ob = self._process(ob)
         self.states.append(ob)
@@ -88,9 +98,15 @@ class Env_wrapper:
         if self.ob_len > 1:
             history = np.transpose(history, (2, 0, 1))
         history_normalized = self._normalize_ob(history)
+        if self.ob_len == 1:
+            history = np.append(history, [self.timestep])
+            history_normalized = np.append(history_normalized, [self.timestep])
         info["reward_raw"] = r
         info["observation_raw"] = history
         return history_normalized, r, done, info
+
+    def render(self):
+        self.env.render()
 
     def close(self):
         self.env.close()

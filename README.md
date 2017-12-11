@@ -13,6 +13,7 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 * [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347)
   * clipped surrogate loss
   * adapted surrogate loss
+* [Evolution Strategy](https://arxiv.org/abs/1703.03864)
 
 ### Distributions
 * Discrete
@@ -56,6 +57,12 @@ Below are some experimental results achieved by my baselines:
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Reacher.png" width='280px'>
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/InvertedDoublePendulum.png" width='280px'>
 <img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Hopper.png" width='280px'>
+<br>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Walker2d.png" width='280px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Humanoid.png" width='280px'>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/HumanoidStandup.png" width='280px'>
+<br>
+<img src = "https://raw.githubusercontent.com/hzxsnczpku/banrinochoujou/master/images/Ant.png" width='280px'>
 </div>
 
 ### Atari Benchmark
