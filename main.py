@@ -9,6 +9,10 @@ from basic_utils.options import *
 from train import Trainer
 from basic_utils.utils import *
 from basic_utils.layers import mujoco_layer_designer
+from models.policies import Categorical
+from models.net_builder import MLPs_v, MLPs_pol
+from basic_utils.env_wrapper import Vec_env_wrapper
+from models.agents import TRPO_Agent, A2C_Agent
 
 
 def create_config():
@@ -16,7 +20,7 @@ def create_config():
 
     # System Basic Setting
     parser.add_argument('--env', type=str, dest="ENV_NAME", default='CartPole-v0', help='the name of the environment')
-    parser.add_argument('--agent', type=str, default='Evolution_Agent', help='which kind of agent')
+    parser.add_argument('--agent', type=str, default='A2C_Agent', help='which kind of agent')
     parser.add_argument("--load_model", type=bool, default=False, help="whether to load model or not")
     parser.add_argument("--save_every", type=int, default=100, help="number of steps between two saving operations")
     parser.add_argument("--get_info", type=bool, default=True, help="whether to print update info or not")
@@ -91,12 +95,22 @@ def create_config():
 if __name__ == "__main__":
     cfg = create_config()
     cfg = update_default_config(MLP_OPTIONS, cfg)
-    cfg = get_env_info(cfg)
     if cfg["use_mujoco_setting"]:
         cfg = mujoco_layer_designer(cfg)
-    cfg["timesteps_per_batch_worker"] = cfg["timesteps_per_batch"] / cfg["n_worker"]
-    if cfg['disable_cudnn']:
-        torch.backends.cudnn.enabled = False
 
-    t = Trainer(cfg)
+    env = Vec_env_wrapper(name='CartPole-v0', consec_frames=1, running_stat=True)
+    action_space = env.action_space
+    observation_space = env.observation_space
+
+    probtype = Categorical(env.action_space)
+    pol_net = MLPs_pol(observation_space, net_topology_pol_vec, probtype.output_layers)
+    v_net = MLPs_v(observation_space, net_topology_v_vec)
+
+    if use_cuda:
+        pol_net.cuda()
+        v_net.cuda()
+
+    agent = A2C_Agent(pol_net=pol_net, v_net=v_net, probtype=probtype)
+
+    t = Trainer(agent=agent, env=env)
     t.train()

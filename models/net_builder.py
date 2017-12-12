@@ -87,39 +87,21 @@ class MLPs_q_deterministic(nn.Module):
         return m
 
 
-def make_policy(updater, cfg):
-    ob_space = cfg["observation_space"]
-    ac_space = cfg["action_space"]
+def make_policy(updater, ob_space, net_topology, probtype):
     assert isinstance(ob_space, Box)
-    if len(ob_space.shape) == 1:
-        net_topology_pol = cfg["net_topology_pol_vec"]
-    else:
-        net_topology_pol = cfg["net_topology_pol_fig"]
-    if isinstance(ac_space, Box):
-        if cfg['dist'] == 'DiagGauss':
-            probtype = DiagGauss(ac_space)
-        elif cfg['dist'] == 'DiagBeta':
-            probtype = DiagBeta(ac_space)
-    elif isinstance(ac_space, Discrete):
-        probtype = Categorical(ac_space)
-    net = MLPs_pol(ob_space, net_topology_pol, probtype.output_layers)
+    net = MLPs_pol(ob_space, net_topology, probtype.output_layers)
     if use_cuda:
         net.cuda()
-    policy = StochPolicy(net, probtype, updater, cfg)
+    policy = StochPolicy(net, probtype, updater)
     return policy
 
 
-def make_baseline(optimizer, cfg):
-    ob_space = cfg["observation_space"]
+def make_baseline(optimizer, ob_space, net_topology):
     assert isinstance(ob_space, Box)
-    if len(ob_space.shape) == 1:
-        net_topology_v = cfg["net_topology_v_vec"]
-    else:
-        net_topology_v = cfg["net_topology_v_fig"]
-    net = MLPs_v(ob_space, net_topology_v)
+    net = MLPs_v(ob_space, net_topology)
     if use_cuda:
         net.cuda()
-    baseline = ValueFunction(net, optimizer, cfg)
+    baseline = ValueFunction(net, optimizer)
     return baseline
 
 
@@ -157,8 +139,8 @@ def make_policy_deterministic(updater, cfg):
     if use_cuda:
         net.cuda()
         net_target.cuda()
-    policy = StochPolicy(net, probtype, updater, cfg)
-    policy_target = StochPolicy(net, probtype, updater, cfg)
+    policy = StochPolicy(net, probtype, updater)
+    policy_target = StochPolicy(net, probtype, updater)
     return policy, policy_target
 
 

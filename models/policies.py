@@ -3,18 +3,15 @@ from basic_utils.utils import *
 
 
 class StochPolicy:
-    def __init__(self, net, probtype, updater, cfg):
+    def __init__(self, net, probtype, updater):
         self.net = net
         self.probtype = probtype
-        self.updater = updater(self.net, self.probtype, cfg)
+        self.updater = updater
 
-    def act(self, ob, stochastic=True):
+    def act(self, ob):
         ob = turn_into_cuda(np_to_var(ob))
         prob = self.net(ob).data.cpu().numpy()
-        if stochastic:
-            return self.probtype.sample(prob)
-        else:
-            return self.probtype.maxprob(prob)
+        return self.probtype.sample(prob)
 
     def update(self, batch):
         return self.updater(batch)
@@ -108,7 +105,7 @@ class Categorical(Probtype):
         return prob.argmax(axis=1)
 
     def output_layers(self, oshp):
-        return [nn.Linear(oshp, self.n), nn.Softmax()]
+        return [nn.Linear(oshp, self.n), nn.Softmax(dim=self.n)]
 
 
 class DiagGauss(Probtype):
@@ -201,3 +198,8 @@ class DiagBeta(Probtype):
 
     def output_layers(self, oshp):
         return [nn.Linear(oshp, 2 * self.d), Softplus(), Add_One()]
+
+probtypes = {
+    'DiagGauss': DiagGauss,
+    'Categorical': Categorical,
+}

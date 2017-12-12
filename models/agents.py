@@ -1,9 +1,14 @@
 from basic_utils.options import *
 from basic_utils.utils import update_default_config, compute_advantage
-from models.net_builder import make_policy, make_baseline, make_q_baseline, make_policy_deterministic, make_q_baseline_deterministic
+from models.net_builder import make_policy, make_baseline, make_q_baseline, make_policy_deterministic, \
+    make_q_baseline_deterministic
 import numpy as np
+from models.net_builder import MLPs_pol, MLPs_v
 from models.optimizers import *
+from models.policies import StochPolicy
+from models.baselines import ValueFunction
 from basic_utils.replay_memory import *
+from models.policies import probtypes
 
 
 # ================================================================
@@ -27,20 +32,20 @@ class BasicAgent:
 # Policy Based Agent
 # ================================================================
 class Policy_Based_Agent(BasicAgent):
-    def __init__(self, updater, optimizer, usercfg):
-        self.cfg = usercfg
-        self.policy = make_policy(updater, self.cfg)
-        self.baseline = make_baseline(optimizer, self.cfg)
-        self.stochastic = True
+    def __init__(self, policy, baseline, gamma, lam):
+        self.policy = policy
+        self.baseline = baseline
+        self.gamma = gamma
+        self.lam = lam
 
     def act(self, ob_no):
-        return self.policy.act(ob_no, stochastic=self.stochastic)
+        return self.policy.act(ob_no)
 
     def process_act(self, a):
         return self.policy.probtype.process_act(a)
 
     def update(self, paths):
-        compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
+        compute_advantage(self.baseline, paths, gamma=self.gamma, lam=self.lam)
         keys = ["observation", "action", "advantage", "return"]
         processed_path = pre_process_path(paths, keys)
         pol_stats = self.policy.update(processed_path)
@@ -67,14 +72,12 @@ class Policy_Based_Agent(BasicAgent):
 #  Evolution Strategy Based Agent
 # ================================================================
 class Evolution_Based_Agent(BasicAgent):
-    def __init__(self, updater, usercfg):
-        self.cfg = usercfg
-        self.policy = make_policy(updater, self.cfg)
-        self.n_kid = self.cfg['n_kid']
-        self.stochastic = True
+    def __init__(self, policy, n_kid):
+        self.policy = policy
+        self.n_kid = n_kid
 
     def act(self, ob_no):
-        return self.policy.act(ob_no, stochastic=self.stochastic)
+        return self.policy.act(ob_no)
 
     def process_act(self, a):
         return self.policy.probtype.process_act(a)
@@ -100,10 +103,9 @@ class Evolution_Based_Agent(BasicAgent):
 # Deterministic Policy Based Agent
 # ================================================================
 class Deterministic_Policy_Based_Agent(BasicAgent):
-    def __init__(self, updater, optimizer, usercfg):
-        self.cfg = usercfg
-        self.policy, self.target_policy = make_policy_deterministic(updater, self.cfg)
-        self.baseline = make_q_baseline_deterministic(optimizer, self.cfg)
+    def __init__(self, updater, optimizer):
+        self.policy, self.target_policy = make_policy_deterministic(updater)
+        self.baseline = make_q_baseline_deterministic(optimizer)
         self.memory = ReplayBuffer(self.cfg)
         self.stochastic = True
 
@@ -144,7 +146,7 @@ class Value_Based_Agent(BasicAgent):
         self.baseline = make_q_baseline(optimizer, usercfg)
         self.epsilon = self.cfg["ini_epsilon"]
         self.final_epsilon = self.cfg["final_epsilon"]
-        self.epsilon_decay = (self.epsilon - self.final_epsilon)/self.cfg["explore_len"]
+        self.epsilon_decay = (self.epsilon - self.final_epsilon) / self.cfg["explore_len"]
         self.action_dim = self.cfg["action_space"].n
         self.double = double
 
@@ -181,57 +183,159 @@ class Value_Based_Agent(BasicAgent):
         self.baseline.load_model(name)
 
 
-def get_agent(cfg):
-    if cfg["agent"] == "TRPO_Agent":
-        agent = TRPO_Agent(cfg)
-    elif cfg["agent"] == "A2C_Agent":
-        agent = A2C_Agent(cfg)
-    elif cfg["agent"] == "PPO_adapted_Agent":
-        agent = PPO_adapted_Agent(cfg)
-    elif cfg["agent"] == "PPO_clip_Agent":
-        agent = PPO_clip_Agent(cfg)
-    elif cfg["agent"] == "DQN_Agent":
-        agent = DQN_Agent(cfg)
-    elif cfg["agent"] == "Double_DQN_Agent":
-        agent = Double_DQN_Agent(cfg)
-    elif cfg["agent"] == "Prioritized_DQN_Agent":
-        agent = Prioritized_DQN_Agent(cfg)
-        cfg['Prioritized'] = True
-    elif cfg["agent"] == "Prioritized_Double_DQN_Agent":
-        agent = Prioritized_Double_DQN_Agent(cfg)
-        cfg['Prioritized'] = True
-    elif cfg["agent"] == "Evolution_Agent":
-        agent = Evolution_Agent(cfg)
-    return agent
-
-
 # ================================================================
 # Trust Region Policy Optimization
 # ================================================================
 class TRPO_Agent(Policy_Based_Agent):
-    def __init__(self, usercfg):
-        Policy_Based_Agent.__init__(self, TRPO_Updater, Adam_Optimizer, usercfg)
+    def __init__(self,
+                 pol_net,
+                 v_net,
+                 probtype,
+                 lr_optimizer=1e-3,
+                 lam=0.98,
+                 epochs_v=10,
+                 gamma=0.99,
+                 cg_iters=10,
+                 max_kl=0.003,
+                 batch_size=256,
+                 cg_damping=1e-3,
+                 get_info=True):
+        updater = TRPO_Updater(net=pol_net,
+                               probtype=probtype,
+                               cg_damping=cg_damping,
+                               cg_iters=cg_iters,
+                               max_kl=max_kl,
+                               get_info=get_info)
+
+        optimizer = Adam_Optimizer(net=v_net,
+                                   batch_size=batch_size,
+                                   epochs=epochs_v,
+                                   lr=lr_optimizer)
+
+        policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
+        baseline = ValueFunction(net=v_net, optimizer=optimizer)
+
+        self.name = 'TRPO_Agent'
+        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy, gamma=gamma, lam=lam)
 
 
 # ================================================================
 # Advantage Actor-Critic
 # ================================================================
 class A2C_Agent(Policy_Based_Agent):
-    def __init__(self, usercfg):
-        Policy_Based_Agent.__init__(self, Adam_Updater, Adam_Optimizer, usercfg)
+    def __init__(self,
+                 pol_net,
+                 v_net,
+                 probtype,
+                 epochs_v=10,
+                 epochs_p=10,
+                 lam=0.98,
+                 gamma=0.99,
+                 kl_target=0.003,
+                 lr_updater=9e-4,
+                 lr_optimizer=1e-3,
+                 batch_size=256,
+                 get_info=True):
+        updater = Adam_Updater(net=pol_net,
+                               epochs=epochs_p,
+                               kl_target=kl_target,
+                               lr=lr_updater,
+                               probtype=probtype,
+                               get_info=get_info)
+
+        optimizer = Adam_Optimizer(net=v_net,
+                                   batch_size=batch_size,
+                                   epochs=epochs_v,
+                                   lr=lr_optimizer)
+
+        policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
+        baseline = ValueFunction(net=v_net, optimizer=optimizer)
+
+        self.name = 'A2C_Agent'
+        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy, gamma=gamma, lam=lam)
 
 
 # ================================================================
 # Proximal Policy Optimization
 # ================================================================
 class PPO_adapted_Agent(Policy_Based_Agent):
-    def __init__(self, usercfg):
-        Policy_Based_Agent.__init__(self, PPO_adapted_Updater, Adam_Optimizer, usercfg)
+    def __init__(self,
+                 pol_net,
+                 v_net,
+                 probtype,
+                 epochs_v=10,
+                 epochs_p=10,
+                 lam=0.98,
+                 gamma=0.99,
+                 kl_target=0.003,
+                 lr_updater=9e-4,
+                 lr_optimizer=1e-3,
+                 batch_size=256,
+                 adj_thres=(0.5, 2.0),
+                 beta=1.0,
+                 beta_range=(1 / 35.0, 35.0),
+                 kl_cutoff_coeff=50.0,
+                 get_info=True):
+        updater = PPO_adapted_Updater(adj_thres=adj_thres,
+                                      beta=beta,
+                                      beta_range=beta_range,
+                                      epochs=epochs_p,
+                                      kl_cutoff_coeff=kl_cutoff_coeff,
+                                      kl_target=kl_target,
+                                      lr=lr_updater,
+                                      net=pol_net,
+                                      probtype=probtype,
+                                      get_info=get_info)
+
+        optimizer = Adam_Optimizer(net=v_net,
+                                   batch_size=batch_size,
+                                   epochs=epochs_v,
+                                   lr=lr_optimizer)
+
+        policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
+        baseline = ValueFunction(net=v_net, optimizer=optimizer)
+
+        self.name = 'PPO_adapted_Agent'
+        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy, gamma=gamma, lam=lam)
 
 
 class PPO_clip_Agent(Policy_Based_Agent):
-    def __init__(self, usercfg):
-        Policy_Based_Agent.__init__(self, PPO_clip_Updater, Adam_Optimizer, usercfg)
+    def __init__(self,
+                 pol_net,
+                 v_net,
+                 probtype,
+                 epochs_v=10,
+                 epochs_p=10,
+                 lam=0.98,
+                 gamma=0.99,
+                 kl_target=0.003,
+                 lr_updater=9e-4,
+                 lr_optimizer=1e-3,
+                 batch_size=256,
+                 adj_thres=(0.5, 2.0),
+                 clip_range=(0.05, 0.3),
+                 epsilon=0.2,
+                 get_info=True):
+        updater = PPO_clip_Updater(adj_thres=adj_thres,
+                                   clip_range=clip_range,
+                                   epsilon=epsilon,
+                                   epochs=epochs_p,
+                                   kl_target=kl_target,
+                                   lr=lr_updater,
+                                   net=pol_net,
+                                   probtype=probtype,
+                                   get_info=get_info)
+
+        optimizer = Adam_Optimizer(net=v_net,
+                                   batch_size=batch_size,
+                                   epochs=epochs_v,
+                                   lr=lr_optimizer)
+
+        policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
+        baseline = ValueFunction(net=v_net, optimizer=optimizer)
+
+        self.name = 'PPO_clip_Agent'
+        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy, gamma=gamma, lam=lam)
 
 
 # ================================================================
@@ -267,5 +371,14 @@ class Prioritized_Double_DQN_Agent(Value_Based_Agent):
 # Evolution Strategies
 # ================================================================
 class Evolution_Agent(Evolution_Based_Agent):
-    def __init__(self, usercfg):
-        Evolution_Based_Agent.__init__(self, Evolution_Updater, usercfg)
+    def __init__(self,
+                 pol_net,
+                 probtype,
+                 lr_updater=0.01,
+                 n_kid=10,
+                 sigma=0.05):
+        updater = Evolution_Updater(lr=lr_updater, n_kid=n_kid, net=pol_net, sigma=sigma)
+        policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
+
+        self.name='Evolution_Agent'
+        Evolution_Based_Agent.__init__(self, policy=policy, n_kid=n_kid)

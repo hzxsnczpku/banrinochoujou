@@ -38,6 +38,61 @@ class Scaler(object):
         return 1/(np.sqrt(self.vars) + 0.1)/3, self.means
 
 
+class Vec_env_wrapper:
+    def __init__(self, name, consec_frames, running_stat):
+        self.env = gym.make(name)
+        self.name = name
+        self.consec_frames = consec_frames
+        self.states = deque(maxlen=self.consec_frames)
+        self.observation_space = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames + 1,), low=0, high=1)
+        self.observation_space_sca = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames,), low=0,
+                                     high=1)
+        self.action_space = self.env.action_space
+
+        self.timestep = 0
+        self.running_stat = running_stat
+        self.offset = None
+        self.scale = None
+
+    def set_scaler(self, scales):
+        self.offset = scales[1]
+        self.scale = scales[0]
+
+    def _normalize_ob(self, ob):
+        if not self.running_stat:
+            return ob
+        return (ob - self.offset) * self.scale
+
+    def reset(self):
+        ob = self.env.reset()
+        self.timestep = 0
+        for i in range(self.consec_frames):
+            self.states.append(ob)
+        history = np.concatenate(self.states, axis=-1)
+        history_normalized = self._normalize_ob(history)
+        history_normalized = np.append(history_normalized, [self.timestep])
+
+        info = {"observation_raw": history}
+        return history_normalized, info
+
+    def step(self, action):
+        ob, r, done, info = self.env.step(action)
+        self.timestep += 1e-3
+        self.states.append(ob)
+        history = np.concatenate(self.states, axis=-1)
+        history_normalized = self._normalize_ob(history)
+        history_normalized = np.append(history_normalized, [self.timestep])
+        info["reward_raw"] = r
+        info["observation_raw"] = history
+        return history_normalized, r, done, info
+
+    def render(self):
+        self.env.render()
+
+    def close(self):
+        self.env.close()
+
+
 class Env_wrapper:
     def __init__(self, cfg):
         self.env = gym.make(cfg["ENV_NAME"])
