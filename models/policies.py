@@ -13,8 +13,8 @@ class StochPolicy:
         prob = self.net(ob).data.cpu().numpy()
         return self.probtype.sample(prob)[0]
 
-    def update(self, batch):
-        return self.updater(batch)
+    def update(self, *args):
+        return self.updater(*args)
 
     def save_model(self, name):
         torch.save(self.net, name + "_policy.pkl")
@@ -28,32 +28,112 @@ class StochPolicy:
 # Abstract Class of Probtype
 # ================================================================
 class Probtype:
+    """
+    This is the abstract class of probtype.
+    """
     def likelihood(self, a, prob):
+        """
+        Output the likelihood of an action given the parameters of the probability.
+
+        Args:
+            a: the action
+            prob: the parameters of the probability
+
+        Return:
+            likelihood: the likelihood of the action
+        """
         raise NotImplementedError
 
     def loglikelihood(self, a, prob):
+        """
+        Output the log likelihood of an action given the parameters of the probability.
+
+        Args:
+            a: the action
+            prob: the parameters of the probability
+
+        Return:
+            log_likelihood: the log likelihood of the action
+        """
         raise NotImplementedError
 
     def kl(self, prob0, prob1):
+        """
+        Output the kl divergence of two given distributions
+
+        Args:
+            prob0: the parameter of the first distribution
+            prob1: the parameter of the second distribution
+
+        Return:
+            kl: the kl divergence between the two distributions
+        """
         raise NotImplementedError
 
     def entropy(self, prob0):
+        """
+        Output the entropy of one given distribution
+
+        Args:
+            prob0: the parameter of the distribution
+
+        Return:
+            entropy: the entropy of the distribution
+        """
         raise NotImplementedError
 
     def sample(self, prob):
+        """
+        Sample action from the given distribution.
+
+        Args:
+            prob: the parameter of the distribution
+
+        Return:
+            action: the sampled action
+        """
         raise NotImplementedError
 
     def maxprob(self, prob):
+        """
+        Sample action with the maximum likelihood.
+
+        Args:
+            prob: the parameter of the distribution
+
+        Return:
+            action: the sampled action
+        """
         raise NotImplementedError
 
     def output_layers(self, oshp):
+        """
+        Set the output layer needed for the distribution.
+
+        Args:
+            oshp: the input shape
+
+        Return:
+            layer: the corresponding layer
+        """
         raise NotImplementedError
 
     def process_act(self, a):
+        """
+        Optional action processer.
+        Args:
+            a: the action to be processed
+
+        Return:
+            processed_action: the processed action
+        """
         return a
 
 
 class Deterministic(Probtype):
+    """
+    The deterministic policy type for the continuous action space, which directly determines the output point.
+    """
     def __init__(self, ac_space):
         self.d = ac_space.shape[0]
 
@@ -80,6 +160,10 @@ class Deterministic(Probtype):
 
 
 class Categorical(Probtype):
+    """
+    The multinomial distribution for discrete action space. It gives
+     a vector representing the probability for selecting each action.
+    """
     def __init__(self, ac_space):
         self.n = ac_space.n
 
@@ -109,6 +193,10 @@ class Categorical(Probtype):
 
 
 class DiagGauss(Probtype):
+    """
+    The diagonal Gauss distribution for continuous action space.
+    It models the distribution of the action as independent Gaussian distribution.
+    """
     def __init__(self, ac_space):
         self.d = ac_space.shape[0]
 
@@ -146,6 +234,10 @@ class DiagGauss(Probtype):
 
 
 class DiagBeta(Probtype):
+    """
+    The diagonal Beta distribution for continuous action space.
+    It models the distribution of the action as independent Beta distribution.
+    """
     def __init__(self, ac_space):
         self.d = ac_space.shape[0]
         self.scale = ac_space.high - ac_space.low

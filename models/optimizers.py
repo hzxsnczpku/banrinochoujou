@@ -320,26 +320,22 @@ class Evolution_Updater:
         self.optimizer = optim.SGD(self.net.parameters(), lr=lr, momentum=0.9)
         self.get_info = get_info
         self.sigma = sigma
-        base = self.n_kid * 2
-        rank = np.arange(1, base + 1)
-        util_ = np.maximum(0, np.log(base / 2 + 1) - np.log(rank))
-        self.utility = util_ / util_.sum() - 1 / base
 
-    def __call__(self, path):
-        noise_seed = path[0]['seed']
+    def __call__(self, path, noise_seed):
         path_info = [p['reward_raw'] for p in path]
         path_index = [p['index'] for p in path]
         total_reward = np.zeros((2 * self.n_kid,))
         for i in range(len(path_index)):
             total_reward[path_index[i]] += np.sum(path_info[i])
 
-        kids_rank = np.argsort(total_reward)[::-1]
+        total_reward = (total_reward - np.mean(total_reward)) / np.std(total_reward)
 
         flat_params = get_flat_params_from(self.net).cpu().numpy()
         cumulative_update = np.zeros_like(flat_params)
-        for ui, k_id in enumerate(kids_rank):
-            np.random.seed(noise_seed[k_id])  # reconstruct noise using seed
-            cumulative_update += self.utility[ui] * sign(k_id) * np.random.randn(flat_params.size)
+        for k_id in range(2 * self.n_kid):
+            np.random.seed(noise_seed[k_id])
+            cumulative_update += sign(k_id) * np.random.randn(flat_params.size) * total_reward[k_id]
+
         cumulative_update /= -2 * self.n_kid * self.sigma
         self.net.zero_grad()
         set_flat_grads_to(self.net, turn_into_cuda(torch.from_numpy(cumulative_update)))

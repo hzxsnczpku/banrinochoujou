@@ -1,5 +1,5 @@
 from basic_utils.options import *
-from basic_utils.utils import update_default_config, compute_advantage
+from basic_utils.utils import compute_advantage
 import numpy as np
 from models.net_builder import MLPs_pol, MLPs_v
 from models.optimizers import *
@@ -75,9 +75,10 @@ class Policy_Based_Agent(BasicAgent):
 #  Evolution Strategy Based Agent
 # ================================================================
 class Evolution_Based_Agent(BasicAgent):
-    def __init__(self, policy, n_kid):
+    def __init__(self, policy, n_kid, sigma):
         self.policy = policy
         self.n_kid = n_kid
+        self.sigma = sigma
 
     def act(self, ob_no):
         return self.policy.act(ob_no)
@@ -86,7 +87,7 @@ class Evolution_Based_Agent(BasicAgent):
         return self.policy.probtype.process_act(a)
 
     def update(self, paths):
-        pol_stats = self.policy.update(paths)
+        pol_stats = self.policy.update(paths, self.noise_seed)
         return [("pol", pol_stats)], {}
 
     def save_model(self, name):
@@ -96,7 +97,15 @@ class Evolution_Based_Agent(BasicAgent):
         self.policy.load_model(name)
 
     def get_params(self):
-        return get_flat_params_from(self.policy.net)
+        self.noise_seed = np.random.randint(0, 2 ** 32 - 1, size=self.n_kid, dtype=np.uint32).repeat(2)
+        params = get_flat_params_from(self.policy.net)
+        for index in range(2 * self.n_kid):
+            seed = self.noise_seed[index]
+            np.random.seed(seed)
+            change = turn_into_cuda(
+                torch.from_numpy(sign(index) * self.sigma * np.random.randn(params.numel()))).float()
+            new_params = params + change
+            yield new_params
 
     def set_params(self, flat_params):
         set_flat_params_to(self.policy.net, flat_params)
@@ -390,5 +399,5 @@ class Evolution_Agent(Evolution_Based_Agent):
         updater = Evolution_Updater(lr=lr_updater, n_kid=n_kid, net=pol_net, sigma=sigma)
         policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
 
-        self.name='Evolution_Agent'
-        Evolution_Based_Agent.__init__(self, policy=policy, n_kid=n_kid)
+        self.name = 'Evolution_Agent'
+        Evolution_Based_Agent.__init__(self, policy=policy, n_kid=n_kid, sigma=sigma)
