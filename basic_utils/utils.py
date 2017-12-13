@@ -242,6 +242,15 @@ def pre_process_path(paths, keys):
 
 
 def get_flat_params_from(model):
+    """
+    Get the flattened parameters of the model.
+
+    Args:
+        model: the model from which the parameters are derived
+
+    Return:
+        flat_param: the flattened parameters
+    """
     params = []
     for param in model.parameters():
         params.append(param.data.view(-1))
@@ -250,6 +259,13 @@ def get_flat_params_from(model):
 
 
 def set_flat_params_to(model, flat_params):
+    """
+    Set the flattened parameters back to the model.
+
+    Args:
+        model: the model to which the parameters are set
+        flat_params: the flattened parameters to be set
+    """
     prev_ind = 0
     for param in model.parameters():
         flat_size = int(np.prod(list(param.size())))
