@@ -4,9 +4,47 @@ from basic_utils.utils import *
 
 
 # ================================================================
+# Abstract Classes
+# ================================================================
+class Updater:
+    """
+    This is the abstract class of the policy updater.
+    """
+    def __call__(self, path):
+        """
+        Update the network weights.
+
+        Args:
+            path: a dict consisting the data for updating
+
+        Return:
+            a dict containing the information about the process
+        """
+        raise NotImplementedError
+
+
+class Optimizer:
+    """
+    This is the abstract class of the value optimizer.
+    """
+
+    def __call__(self, path):
+        """
+        Update the network weights.
+
+        Args:
+            path: a dict consisting the data for updating
+
+        Return:
+            a dict containing the information about the process
+        """
+        raise NotImplementedError
+
+
+# ================================================================
 # Trust Region Policy Optimization Updater
 # ================================================================
-class TRPO_Updater:
+class TRPO_Updater(Updater):
     def __init__(self, net, probtype, max_kl, cg_damping, cg_iters, get_info):
         self.net = net
         self.probtype = probtype
@@ -106,7 +144,7 @@ class TRPO_Updater:
 # ================================================================
 # Adam Updater
 # ================================================================
-class Adam_Updater:
+class Adam_Updater(Updater):
     def __init__(self, net, probtype, lr, epochs, kl_target, get_info):
         self.net = net
         self.probtype = probtype
@@ -156,7 +194,7 @@ class Adam_Updater:
 # ================================================================
 # Ppo Updater
 # ================================================================
-class PPO_adapted_Updater:
+class PPO_adapted_Updater(Updater):
     def __init__(self, net, probtype, beta, kl_cutoff_coeff, kl_target, epochs, lr, beta_range, adj_thres,
                  get_info=True):
         self.net = net
@@ -236,7 +274,7 @@ class PPO_adapted_Updater:
             return merge_before_after(info_before, info_after)
 
 
-class PPO_clip_Updater:
+class PPO_clip_Updater(Updater):
     def __init__(self, net, probtype, epsilon, kl_target, epochs, adj_thres, clip_range, lr, get_info=True):
         self.net = net
         self.probtype = probtype
@@ -313,7 +351,7 @@ class PPO_clip_Updater:
 # ================================================================
 # Evolution Updater
 # ================================================================
-class Evolution_Updater:
+class Evolution_Updater(Updater):
     def __init__(self, net, n_kid, lr, sigma, get_info=True):
         self.net = net
         self.n_kid = n_kid
@@ -347,7 +385,7 @@ class Evolution_Updater:
 # ================================================================
 # DDPG Updater
 # ================================================================
-class DDPG_Updater:
+class DDPG_Updater(Updater):
     def __init__(self, net, q_net, lr, get_data=True):
         self.net = net
         self.q_net = q_net
@@ -371,7 +409,7 @@ class DDPG_Updater:
 # ================================================================
 # Adam Optimizer
 # ================================================================
-class Adam_Optimizer:
+class Adam_Optimizer(Optimizer):
     def __init__(self, net, lr, epochs, batch_size, get_data=True):
         self.net = net
         self.optimizer = optim.Adam(self.net.parameters(), lr)
@@ -428,7 +466,7 @@ class Adam_Optimizer:
 # ================================================================
 # Adam Q-Learning Optimizer
 # ================================================================
-class Adam_Q_Optimizer:
+class Adam_Q_Optimizer(Optimizer):
     def __init__(self, net, lr, get_data=True):
         self.net = net
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=lr)
@@ -467,7 +505,7 @@ class Adam_Q_Optimizer:
 # ================================================================
 # DDPG Optimizer
 # ================================================================
-class DDPG_Optimizer:
+class DDPG_Optimizer(Optimizer):
     def __init__(self, net, lr, get_data=True):
         self.net = net
         self.get_data = get_data
@@ -502,6 +540,9 @@ class DDPG_Optimizer:
 
 
 class Target_updater:
+    """
+    A class for updating the target network.
+    """
     def __init__(self, net, target_net, tau=0.01, update_target_every=None):
         self.net = net
         self.target_net = target_net

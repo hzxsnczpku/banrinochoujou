@@ -12,22 +12,61 @@ from basic_utils.replay_memory import *
 # Abstract Class
 # ================================================================
 class BasicAgent:
+    """
+    This is the abstract class of the agent.
+    """
     def act(self, ob_no):
+        """
+        Get the action given the observation.
+
+        Args:
+            ob_no: the observation
+
+        Return:
+            the corresponding action
+        """
         raise NotImplementedError
 
     def update(self, paths):
+        """
+        Update the weights of the network.
+
+        Args:
+            paths: a dict containing the information for updating
+
+        Return:
+            information of the updating process, extra information
+        """
         raise NotImplementedError
 
     def get_params(self):
+        """
+        Get the parameters of the agent.
+
+        Return:
+            the state dict of the agent
+        """
         raise NotImplementedError
 
     def set_params(self, state_dicts):
+        """
+        Set the parameters to the agent.
+
+        Args:
+            state_dicts: the parameters to be set
+        """
         raise NotImplementedError
 
     def save_model(self, name):
+        """
+        Save the model.
+        """
         raise NotImplementedError
 
     def load_model(self, name):
+        """
+        Load the model.
+        """
         raise NotImplementedError
 
 

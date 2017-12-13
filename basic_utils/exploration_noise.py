@@ -1,6 +1,26 @@
 import numpy as np
 
 
+class Exploration_Noise:
+    def reset(self):
+        """
+        Reset the noise generator.
+        """
+        pass
+
+    def process_action(self, a):
+        """
+        Add noise to the given action.
+
+        Args:
+            a: the action to be processed
+
+        Return:
+            the processed action
+        """
+        raise NotImplementedError
+
+
 class OUNoise_Exploration:
     """
     The OU noise.
@@ -48,6 +68,29 @@ class EpsilonGreedy_Exploration:
             new_a = np.random.randint(0, self.n)
         else:
             new_a = np.argmax(a)
+
+        if self.epsilon > self.final_epsilon:
+            self.epsilon -= self.epsilon_decay
+        return new_a, {'epsilon': self.epsilon}
+
+    def reset(self):
+        pass
+
+
+class Boltzmann_Exploration:
+    """
+    The Boltzmann noise.
+    """
+    def __init__(self, action_n, init_epsilon, final_epsilon, explore_len):
+        self.epsilon = init_epsilon
+        self.epsilon_decay = (init_epsilon - final_epsilon) / explore_len
+        self.final_epsilon = final_epsilon
+        self.extra_info = ['epsilon']
+        self.n = action_n
+
+    def process_action(self, a):
+        probs = np.exp(a / self.epsilon)
+        new_a = np.argmax(np.random.multinomial(1, probs))
 
         if self.epsilon > self.final_epsilon:
             self.epsilon -= self.epsilon_decay
