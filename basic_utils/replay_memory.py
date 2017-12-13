@@ -76,11 +76,10 @@ class SumSegmentTree(SegmentTree):
 
 
 class ReplayBuffer:
-    def __init__(self, cfg):
-        self.cfg = cfg
+    def __init__(self, memory_cap=200000, batch_size_q=64):
         self._storage = []
-        self._maxsize = self.cfg["memory_cap"]
-        self.batch_size = self.cfg["batch_size_q"]
+        self._maxsize = memory_cap
+        self.batch_size = batch_size_q
         self._next_idx = 0
 
     def __len__(self):
@@ -115,10 +114,10 @@ class ReplayBuffer:
 
 
 class PrioritizedReplayBuffer(ReplayBuffer):
-    def __init__(self, cfg):
-        super(PrioritizedReplayBuffer, self).__init__(cfg)
-        self._alpha = self.cfg["alpha"]
-        self._beta = self.cfg["beta"]
+    def __init__(self, memory_cap=200000, batch_size_q=64, alpha=0.8, beta=0.6):
+        super(PrioritizedReplayBuffer, self).__init__(memory_cap, batch_size_q)
+        self._alpha = alpha
+        self._beta = beta
 
         it_capacity = 1
         while it_capacity < self._maxsize:

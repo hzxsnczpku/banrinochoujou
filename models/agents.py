@@ -1,14 +1,11 @@
 from basic_utils.options import *
 from basic_utils.utils import update_default_config, compute_advantage
-from models.net_builder import make_policy, make_baseline, make_q_baseline, make_policy_deterministic, \
-    make_q_baseline_deterministic
 import numpy as np
 from models.net_builder import MLPs_pol, MLPs_v
 from models.optimizers import *
 from models.policies import StochPolicy
-from models.baselines import ValueFunction
+from models.baselines import *
 from basic_utils.replay_memory import *
-from models.policies import probtypes
 
 
 # ================================================================
@@ -19,6 +16,12 @@ class BasicAgent:
         raise NotImplementedError
 
     def update(self, paths):
+        raise NotImplementedError
+
+    def get_params(self):
+        raise NotImplementedError
+
+    def set_params(self, state_dicts):
         raise NotImplementedError
 
     def save_model(self, name):
@@ -141,28 +144,18 @@ class Deterministic_Policy_Based_Agent(BasicAgent):
 # Value Based Agent
 # ================================================================
 class Value_Based_Agent(BasicAgent):
-    def __init__(self, optimizer, usercfg, double=False):
-        self.cfg = usercfg
-        self.baseline = make_q_baseline(optimizer, usercfg)
-        self.epsilon = self.cfg["ini_epsilon"]
-        self.final_epsilon = self.cfg["final_epsilon"]
-        self.epsilon_decay = (self.epsilon - self.final_epsilon) / self.cfg["explore_len"]
-        self.action_dim = self.cfg["action_space"].n
+    def __init__(self, baseline, gamma, double=False):
+        self.baseline = baseline
+        self.gamma = gamma
         self.double = double
 
     def act(self, ob_no):
-        if np.random.rand() > self.epsilon:
-            action = self.baseline.act(ob_no)
-        else:
-            action = np.random.randint(0, self.action_dim)
-        if self.epsilon > self.final_epsilon:
-            self.epsilon -= self.epsilon_decay
-        return action
+        return self.baseline.act(ob_no)
 
     def update(self, path=None):
         if path is None:
             return None, None
-        compute_target(self.baseline, path, gamma=self.cfg["gamma"], double=self.double)
+        compute_target(self.baseline, path, gamma=self.gamma, double=self.double)
         keys = ["observation", "action", "y_targ"]
         processed_path = pre_process_path([path], keys)
         if 'weights' in path:
@@ -242,7 +235,6 @@ class A2C_Agent(Policy_Based_Agent):
                                lr=lr_updater,
                                probtype=probtype,
                                get_info=get_info)
-
         optimizer = Adam_Optimizer(net=v_net,
                                    batch_size=batch_size,
                                    epochs=epochs_v,
@@ -325,7 +317,6 @@ class PPO_clip_Agent(Policy_Based_Agent):
                                    net=pol_net,
                                    probtype=probtype,
                                    get_info=get_info)
-
         optimizer = Adam_Optimizer(net=v_net,
                                    batch_size=batch_size,
                                    epochs=epochs_v,
@@ -342,29 +333,48 @@ class PPO_clip_Agent(Policy_Based_Agent):
 # Deep Q Learning
 # ================================================================
 class DQN_Agent(Value_Based_Agent):
-    def __init__(self, usercfg):
-        Value_Based_Agent.__init__(self, Adam_Q_Optimizer, usercfg)
+    def __init__(self,
+                 net,
+                 target_net,
+                 gamma=0.99,
+                 lr=1e-3,
+                 update_target_every=500,
+                 get_info=True):
+        optimizer = Adam_Q_Optimizer(net=net,
+                                     target_net=target_net,
+                                     gamma=gamma,
+                                     lr=lr,
+                                     update_target_every=update_target_every,
+                                     get_data=get_info)
+
+        baseline = QValueFunction(net=net, target_net=target_net, optimizer=optimizer)
+
+        self.name = 'DQN_Agent'
+        Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=False)
 
 
 # ================================================================
 # Double Deep Q Learning
 # ================================================================
 class Double_DQN_Agent(Value_Based_Agent):
-    def __init__(self, usercfg):
-        Value_Based_Agent.__init__(self, Adam_Q_Optimizer, usercfg, double=True)
+    def __init__(self,
+                 net,
+                 target_net,
+                 gamma=0.99,
+                 lr=1e-3,
+                 update_target_every=500,
+                 get_info=True):
+        optimizer = Adam_Q_Optimizer(net=net,
+                                     target_net=target_net,
+                                     gamma=gamma,
+                                     lr=lr,
+                                     update_target_every=update_target_every,
+                                     get_data=get_info)
 
+        baseline = QValueFunction(net=net, target_net=target_net, optimizer=optimizer)
 
-# ================================================================
-# Deep Q Learning with Prioritized Experience Replay
-# ================================================================
-class Prioritized_DQN_Agent(Value_Based_Agent):
-    def __init__(self, usercfg):
-        Value_Based_Agent.__init__(self, Adam_Q_Optimizer, usercfg)
-
-
-class Prioritized_Double_DQN_Agent(Value_Based_Agent):
-    def __init__(self, usercfg):
-        Value_Based_Agent.__init__(self, Adam_Q_Optimizer, usercfg, double=True)
+        self.name = 'Double_DQN_Agent'
+        Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=True)
 
 
 # ================================================================

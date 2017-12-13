@@ -25,7 +25,7 @@ class QValueFunction:
     def __init__(self, net, target_net, optimizer):
         self.net = net
         self.target_net = target_net
-        self.optimizer = optimizer(self.net, self.target_net)
+        self.optimizer = optimizer
 
     def predict(self, ob_no, target=False):
         observations = turn_into_cuda(np_to_var(np.array(ob_no)))

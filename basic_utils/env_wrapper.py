@@ -4,8 +4,6 @@ from skimage.color import rgb2gray
 from skimage.transform import resize
 from collections import deque
 from gym.spaces import Box
-import multiprocessing as mp
-from multiprocessing import Queue
 
 
 class Scaler(object):
@@ -30,7 +28,7 @@ class Scaler(object):
             self.vars = (((self.m * (self.vars + np.square(self.means))) +
                           (n * (new_data_var + new_data_mean_sq))) / (self.m + n) -
                          np.square(new_means))
-            self.vars = np.maximum(0.0, self.vars)  # occasionally goes negative, clip
+            self.vars = np.maximum(0.0, self.vars)
             self.means = new_means
             self.m += n
 
@@ -93,20 +91,16 @@ class Vec_env_wrapper:
         self.env.close()
 
 
-class Env_wrapper:
+class Fig_env_wrapper:
     def __init__(self, cfg):
         self.env = gym.make(cfg["ENV_NAME"])
         self.consec_frames = cfg["consec_frames"]
         self.image_size = cfg["image_size"]
         self.states = deque(maxlen=self.consec_frames)
-        self.ob_len = len(self.env.observation_space.shape)
-        if self.ob_len > 1:
-            self.observation_space = Box(shape=(self.consec_frames,) + self.image_size, low=0, high=1)
-        else:
-            self.observation_space = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames + 1,), low=0, high=1)
+        self.observation_space = Box(shape=(self.consec_frames,) + self.image_size, low=0, high=1)
+        self.observation_space_sca = Box(shape=(self.consec_frames,) + self.image_size, low=0, high=1)
         self.action_space = self.env.action_space
 
-        self.timestep = 0
         self.running_stat = cfg["running_stat"]
         self.offset = None
         self.scale = None
@@ -127,35 +121,24 @@ class Env_wrapper:
     def reset(self):
         ob = self.env.reset()
         self.timestep = 0
-        if self.ob_len > 1:
-            ob = self._process(ob)
+        ob = self._process(ob)
         for i in range(self.consec_frames):
             self.states.append(ob)
         history = np.concatenate(self.states, axis=-1)
-        if self.ob_len > 1:
-            history = np.transpose(history, (2, 0, 1))
+        history = np.transpose(history, (2, 0, 1))
 
         history_normalized = self._normalize_ob(history)
-        if self.ob_len == 1:
-            history = np.append(history, [self.timestep])
-            history_normalized = np.append(history_normalized, [self.timestep])
 
         info = {"observation_raw": history}
         return history_normalized, info
 
     def step(self, action):
         ob, r, done, info = self.env.step(action)
-        self.timestep += 1e-3
-        if self.ob_len > 1:
-            ob = self._process(ob)
+        ob = self._process(ob)
         self.states.append(ob)
         history = np.concatenate(self.states, axis=-1)
-        if self.ob_len > 1:
-            history = np.transpose(history, (2, 0, 1))
+        history = np.transpose(history, (2, 0, 1))
         history_normalized = self._normalize_ob(history)
-        if self.ob_len == 1:
-            history = np.append(history, [self.timestep])
-            history_normalized = np.append(history_normalized, [self.timestep])
         info["reward_raw"] = r
         info["observation_raw"] = history
         return history_normalized, r, done, info

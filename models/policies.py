@@ -11,7 +11,7 @@ class StochPolicy:
     def act(self, ob):
         ob = turn_into_cuda(np_to_var(ob))
         prob = self.net(ob).data.cpu().numpy()
-        return self.probtype.sample(prob)
+        return self.probtype.sample(prob)[0]
 
     def update(self, batch):
         return self.updater(batch)
@@ -105,7 +105,7 @@ class Categorical(Probtype):
         return prob.argmax(axis=1)
 
     def output_layers(self, oshp):
-        return [nn.Linear(oshp, self.n), nn.Softmax(dim=self.n)]
+        return [nn.Linear(oshp, self.n), nn.Softmax(dim=-1)]
 
 
 class DiagGauss(Probtype):
@@ -198,8 +198,3 @@ class DiagBeta(Probtype):
 
     def output_layers(self, oshp):
         return [nn.Linear(oshp, 2 * self.d), Softplus(), Add_One()]
-
-probtypes = {
-    'DiagGauss': DiagGauss,
-    'Categorical': Categorical,
-}

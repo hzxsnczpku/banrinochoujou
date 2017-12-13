@@ -3,7 +3,6 @@ from torch import nn
 import numpy as np
 import torch
 from tabulate import tabulate
-from basic_utils.env_wrapper import Env_wrapper
 import scipy.signal
 import time
 
@@ -176,14 +175,6 @@ def set_flat_grads_to(model, flat_grads):
         flat_size = int(np.prod(list(param.size())))
         param.grad = Variable(flat_grads[prev_ind:prev_ind + flat_size].view(param.size()))
         prev_ind += flat_size
-
-
-def get_env_info(cfg):
-    env = Env_wrapper(cfg)
-    cfg["observation_space"] = env.observation_space
-    cfg["action_space"] = env.action_space
-    env.close()
-    return cfg
 
 
 def turn_into_cuda(var):
