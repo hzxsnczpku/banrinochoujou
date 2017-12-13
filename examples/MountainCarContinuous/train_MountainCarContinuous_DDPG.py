@@ -7,12 +7,12 @@ from basic_utils.exploration_noise import OUNoise_Exploration
 
 
 def train_MountainCarContinuous_DDPG(load_model=False, render=False, save_every=None, prioritized=False):
-    env = Vec_env_wrapper(name='MountainCarContinuous-v0', consec_frames=1, running_stat=True)
+    env = Vec_env_wrapper(name='MountainCarContinuous-v0', consec_frames=1, running_stat=False)
     ob_space = env.observation_space
     ac_space = env.action_space
 
     probtype = Deterministic(env.action_space)
-    noise = OUNoise_Exploration(ac_space.shape[0], init_epsilon=0.2, final_epsilon=0.2, explore_len=100000)
+    noise = OUNoise_Exploration(ac_space.shape[0], init_epsilon=0.99, final_epsilon=0.05, explore_len=100000)
 
     pol_net = MLPs_pol(ob_space, net_topology_pol_vec, probtype.output_layers)
     target_pol_net = MLPs_pol(ob_space, net_topology_pol_vec, probtype.output_layers)
@@ -30,10 +30,10 @@ def train_MountainCarContinuous_DDPG(load_model=False, render=False, save_every=
                        q_net=q_net,
                        q_target_net=target_q_net,
                        probtype=probtype,
-                       lr_updater=1e-4,
+                       lr_updater=1e-3,
                        lr_optimizer=1e-3,
                        gamma=0.99,
-                       tau=0.001,
+                       tau=0.01,
                        update_target_every=None,
                        get_info=True)
 
@@ -41,21 +41,21 @@ def train_MountainCarContinuous_DDPG(load_model=False, render=False, save_every=
         agent.load_model("./save_model/" + env.name + "_" + agent.name)
 
     if prioritized:
-        memory = PrioritizedReplayBuffer(memory_cap=20000, batch_size_q=64)
+        memory = PrioritizedReplayBuffer(memory_cap=10000, batch_size_q=100)
     else:
-        memory = ReplayBuffer(memory_cap=20000, batch_size_q=64)
+        memory = ReplayBuffer(memory_cap=10000, batch_size_q=100)
 
     t = Mem_Trainer(agent=agent,
                     env=env,
                     memory=memory,
-                    n_worker=2,
-                    step_num=4,
+                    n_worker=1,
+                    step_num=1,
                     noise=noise,
-                    rand_explore_len=5000,
+                    rand_explore_len=1000,
                     save_every=save_every,
                     render=render,
-                    action_repeat=4,
-                    print_every=10)
+                    action_repeat=1,
+                    print_every=5)
     t.train()
 
 

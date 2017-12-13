@@ -304,8 +304,9 @@ def mem_step_rollout(agent,
             require_q.put(single_data)
             single_data = defaultdict(list)
             count += 1
-        if count >= step_num:
-            require_q.put(None)
-            params, scale = recv_q.get()
-            agent.set_params(params)
-            count = 0
+
+            if count >= step_num:
+                require_q.put(None)
+                params, scale = recv_q.get()
+                agent.set_params(params)
+                count = 0

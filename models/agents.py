@@ -429,6 +429,7 @@ class DDPG_Agent(Deterministic_Policy_Based_Agent):
                                lr=lr_updater,
                                q_net=q_net,
                                get_data=get_info)
+
         policy = StochPolicy(net=policy_net,
                              target_net=policy_target_net,
                              tau=tau,
