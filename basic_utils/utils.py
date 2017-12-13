@@ -3,23 +3,36 @@ from torch import nn
 import numpy as np
 import torch
 from tabulate import tabulate
-from basic_utils.env_wrapper import Env_wrapper
 import scipy.signal
 import time
 
 
 def discount(x, gamma):
+    """
+    Calculate the discounted reward.
+
+    Args:
+        x: a list of rewards at each step
+        gamma: the discount factor
+
+    Return:
+        a list containing the discounted reward
+    """
     return scipy.signal.lfilter([1.0], [1.0, -gamma], x[::-1])[::-1]
 
 
-def update_default_config(tuples, usercfg):
-    for (name, _, defval, _) in tuples:
-        if name not in usercfg:
-            usercfg[name] = defval
-    return usercfg
-
-
 def merge_before_after(info_before, info_after):
+    """
+    Merge two dicts into one. This is used when updating network weights.
+    We merge the update info before update and after update into one dict.
+
+    Args:
+        info_before: the dictionary containing the information before updating
+        info_after: the dictionary containing the information after updating
+
+    Return:
+        info: the merged dictionary
+    """
     info = OrderedDict()
     for k in info_before:
         info[k + '_before'] = info_before[k]
@@ -28,6 +41,15 @@ def merge_before_after(info_before, info_after):
 
 
 def compute_advantage(vf, paths, gamma, lam):
+    """
+    Compute the advantage using GAE.
+
+    Args:
+        vf: the value function
+        paths: the data paths for calculation. The result is also saved into it.
+        gamma: discount factor
+        lam: GAE factor
+    """
     for path in paths:
         rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
         path['return'] = discount(rewards, gamma)
@@ -44,6 +66,15 @@ def compute_advantage(vf, paths, gamma, lam):
 
 
 def compute_target(qf, path, gamma, double=False):
+    """
+    Compute the one step bootstrap target for DQN updating.
+
+    Args:
+        qf: the q value function
+        path: the data paths for calculation. The result is also saved into it.
+        gamma: discount factor
+        double: whether to use the double network
+    """
     next_observations = path['next_observation']
     not_dones = path['not_done']
     rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
@@ -55,7 +86,29 @@ def compute_target(qf, path, gamma, double=False):
     path['y_targ'] = y_targ * not_dones * gamma + rewards
 
 
+def compute_target_determinstic(qf, pol, path, gamma):
+    """
+    Compute the one step bootstrap target for DQN updating.
+
+    Args:
+        qf: the q value function
+        path: the data paths for calculation. The result is also saved into it.
+        gamma: discount factor
+        double: whether to use the double network
+    """
+    next_observations = path['next_observation']
+    not_dones = path['not_done']
+    rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
+
+    action = pol.act(next_observations, target=True)
+    y_targ = qf.predict(next_observations, action, target=True)
+    path['y_targ'] = y_targ.reshape((-1,)) * not_dones * gamma + rewards
+
+
 class Callback:
+    """
+    The information printing class.
+    """
     def __init__(self):
         self.counter = 0
         self.u_stats = dict()
@@ -65,6 +118,9 @@ class Callback:
         self.tstart = time.time()
 
     def print_table(self):
+        """
+        Print the saved information, then delete the previous saved information.
+        """
         self.counter += 1
         stats = OrderedDict()
         add_episode_stats(stats, self.path_info)
@@ -88,9 +144,21 @@ class Callback:
         return self.counter
 
     def num_batches(self):
+        """
+        Gives the number of saved path.
+
+        Return:
+            the number of the saved path
+        """
         return len(self.path_info['episoderewards'])
 
     def add_update_info(self, u):
+        """
+        Save the information from updating.
+
+        Args:
+            u: the updating information
+        """
         if u is not None:
             for d in u:
                 if d[0] not in self.u_stats:
@@ -99,6 +167,13 @@ class Callback:
                     self.u_stats[d[0]][k].append(d[1][k])
 
     def add_path_info(self, path_info, extra_info):
+        """
+        Save the game play information.
+
+        Args:
+            path_info: the information about rewards
+            extra_info: optional additional information
+        """
         self.path_info['episoderewards'] += [np.sum(p) for p in path_info]
         self.path_info['pathlengths'] += [len(p) for p in path_info]
         for d in extra_info:
@@ -106,6 +181,13 @@ class Callback:
 
 
 def add_episode_stats(stats, path_info):
+    """
+    Calculate the episode statistics.
+
+    Args:
+        stats: the dict to which the result is saved
+        path_info: the path information for calculation
+    """
     episoderewards = np.array(path_info['episoderewards'])
     pathlengths = np.array(path_info['pathlengths'])
     len_paths = len(episoderewards)
@@ -124,6 +206,14 @@ def add_episode_stats(stats, path_info):
 
 
 def add_prefixed_stats(stats, prefix, d):
+    """
+    Add prefixes to the keys of one dictionary and save the processed terms to another dictionary.
+
+    Args:
+        stats: the dict to which the result is saved
+        prefix: the prefix to be added
+        d: the source dictionary
+    """
     if d is not None:
         for k in d:
             stats[prefix + "_" + k] = d[k]
@@ -133,6 +223,9 @@ use_cuda = torch.cuda.is_available()
 
 
 def Variable(tensor, *args, **kwargs):
+    """
+    The augmented Variable() function which automatically applies cuda() when gpu is available.
+    """
     if use_cuda:
         return torch.autograd.Variable(tensor, *args, **kwargs).cuda()
     else:
@@ -140,11 +233,24 @@ def Variable(tensor, *args, **kwargs):
 
 
 def np_to_var(nparray):
+    """
+    Change a numpy variable to a Variable.
+    """
     assert isinstance(nparray, np.ndarray)
     return torch.autograd.Variable(torch.from_numpy(nparray).float())
 
 
 def pre_process_path(paths, keys):
+    """
+    Pre process the paths into torch Variables.
+
+    Args:
+        paths: paths to be processed
+        keys: select the keys in the path to be processed
+
+    Return:
+        new_path: the processed
+    """
     new_path = defaultdict(list)
     for k in keys:
         new_path[k] = np.concatenate([path[k] for path in paths])
@@ -155,6 +261,15 @@ def pre_process_path(paths, keys):
 
 
 def get_flat_params_from(model):
+    """
+    Get the flattened parameters of the model.
+
+    Args:
+        model: the model from which the parameters are derived
+
+    Return:
+        flat_param: the flattened parameters
+    """
     params = []
     for param in model.parameters():
         params.append(param.data.view(-1))
@@ -163,6 +278,13 @@ def get_flat_params_from(model):
 
 
 def set_flat_params_to(model, flat_params):
+    """
+    Set the flattened parameters back to the model.
+
+    Args:
+        model: the model to which the parameters are set
+        flat_params: the flattened parameters to be set
+    """
     prev_ind = 0
     for param in model.parameters():
         flat_size = int(np.prod(list(param.size())))
@@ -171,6 +293,13 @@ def set_flat_params_to(model, flat_params):
 
 
 def set_flat_grads_to(model, flat_grads):
+    """
+    Set the flattened gradients to the model.
+
+    Args:
+        model: the model to which the gradients are set
+        flat_grads: the flattened gradients to be set
+    """
     prev_ind = 0
     for param in model.parameters():
         flat_size = int(np.prod(list(param.size())))
@@ -178,15 +307,16 @@ def set_flat_grads_to(model, flat_grads):
         prev_ind += flat_size
 
 
-def get_env_info(cfg):
-    env = Env_wrapper(cfg)
-    cfg["observation_space"] = env.observation_space
-    cfg["action_space"] = env.action_space
-    env.close()
-    return cfg
-
-
 def turn_into_cuda(var):
+    """
+    Change a variable or tensor into cuda.
+
+    Args:
+        var: the variable to be changed
+
+    Return:
+        the changed variable
+    """
     return var.cuda() if use_cuda else var
 
 
@@ -199,6 +329,9 @@ def get_state_dict(file):
 
 
 def log_gamma(xx):
+    """
+    The log gamma function.
+    """
     gamma_coeff = [
         76.18009172947146,
         -86.50532032941677,
@@ -220,6 +353,9 @@ def log_gamma(xx):
 
 
 def digamma(xx):
+    """
+    The digamma function.
+    """
     gamma_coeff = [
         76.18009172947146,
         -86.50532032941677,
@@ -241,26 +377,14 @@ def digamma(xx):
 
 
 def merge_dict(path, single_trans):
+    """
+    Merge a single transition into the total path.
+    """
     for k in single_trans:
         path[k] += single_trans[k]
     return 1 - single_trans['not_done'][0]
 
 
-def merge_train_data(u_stats):
-    merged_dicts = dict()
-    re = []
-    for u in u_stats:
-        for d in u:
-            if d[0] not in merged_dicts:
-                merged_dicts[d[0]] = defaultdict(list)
-            for k in d[1]:
-                merged_dicts[d[0]][k].append(d[1][k])
-    for di in merged_dicts:
-        for k in merged_dicts[di]:
-            merged_dicts[di][k] = np.mean(merged_dicts[di][k])
-        re.append((di, merged_dicts[di]))
-    return re
-
-
 def sign(k_id):
     return -1. if k_id % 2 == 0 else 1.
+

@@ -76,17 +76,30 @@ class SumSegmentTree(SegmentTree):
 
 
 class ReplayBuffer:
-    def __init__(self, cfg):
-        self.cfg = cfg
+    """
+    The replay memory.
+    """
+    def __init__(self, memory_cap=200000, batch_size_q=64):
+        """
+        Args:
+            memory_cap: the max length of the buffer
+            batch_size_q: batch size
+        """
         self._storage = []
-        self._maxsize = self.cfg["memory_cap"]
-        self.batch_size = self.cfg["batch_size_q"]
+        self._maxsize = memory_cap
+        self.batch_size = batch_size_q
         self._next_idx = 0
 
     def __len__(self):
         return len(self._storage)
 
     def add(self, data):
+        """
+        Add new data to the replay memory.
+
+        Args:
+            data: new data to add
+        """
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
         else:
@@ -107,6 +120,12 @@ class ReplayBuffer:
         return path
 
     def sample(self):
+        """
+        Sample data from the memory.
+
+        Return:
+            the sampled path
+        """
         idxes = [random.randint(0, len(self._storage) - 1) for _ in range(self.batch_size)]
         return self._encode_sample(idxes)
 
@@ -115,10 +134,13 @@ class ReplayBuffer:
 
 
 class PrioritizedReplayBuffer(ReplayBuffer):
-    def __init__(self, cfg):
-        super(PrioritizedReplayBuffer, self).__init__(cfg)
-        self._alpha = self.cfg["alpha"]
-        self._beta = self.cfg["beta"]
+    """
+    The prioritized replay memory.
+    """
+    def __init__(self, memory_cap=200000, batch_size_q=64, alpha=0.8, beta=0.6):
+        super(PrioritizedReplayBuffer, self).__init__(memory_cap, batch_size_q)
+        self._alpha = alpha
+        self._beta = beta
 
         it_capacity = 1
         while it_capacity < self._maxsize:
@@ -128,6 +150,12 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self._max_priority = 1.0
 
     def add(self, *args, **kwargs):
+        """
+        Add new data to the replay memory.
+
+        Args:
+            data: new data to add
+        """
         idx = self._next_idx
         super().add(*args, **kwargs)
         self._it_sum[idx] = self._max_priority ** self._alpha
@@ -141,6 +169,12 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         return res
 
     def sample(self):
+        """
+        Sample data from the memory.
+
+        Return:
+            the sampled path
+        """
         idxes = self._sample_proportional(self.batch_size)
         weights = []
         for idx in idxes:

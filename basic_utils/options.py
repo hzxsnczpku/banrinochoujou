@@ -1,3 +1,8 @@
+"""
+Here are some default network structures as well as
+some lists containing the names of different agents and environments.
+"""
+
 net_topology_pol_vec = [
     {'kind': 'dense', 'units': 64},
     {'kind': 'Tanh'},
@@ -83,6 +88,7 @@ MLP_OPTIONS = [
     ("net_topology_pol_fig", list, net_topology_pol_fig, "Sizes of hidden layers of MLP"),
     ("net_topology_v_fig", list, net_topology_v_fig, "Sizes of hidden layers of MLP"),
     ("net_topology_q_fig", list, net_topology_q_fig, "Sizes of hidden layers of MLP"),
+    ("net_topology_det_vec", list, net_topology_q_fig, "Sizes of hidden layers of MLP"),
 ]
 
 MOJOCO_ENVS = ["InvertedPendulum-v1", "InvertedDoublePendulum-v1", "Reacher-v1", "HalfCheetah-v1", "Swimmer-v1",

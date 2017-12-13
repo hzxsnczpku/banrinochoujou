@@ -14,13 +14,12 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
   * clipped surrogate loss
   * adapted surrogate loss
 * [Evolution Strategy](https://arxiv.org/abs/1703.03864)
+* [Deep Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971)
 
 ### Distributions
 * Discrete
 * DiagGaussian
 * DiagBeta
-* Gaussian
-* Dirichlet
 
 ## TO BE IMPLEMENTED
 ### Algorithms
@@ -30,6 +29,10 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 *  acktr
 *  Distributional Q Learning
 *  Feudal Network
+
+### Distributions
+* Gaussian
+* Dirichlet
 
 ### Modules
 *  ICM
