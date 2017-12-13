@@ -76,12 +76,12 @@ class MLPs_q_deterministic(nn.Module):
             self.merge_layers.append(l)
         self.merge_layers.append(nn.Linear(inshp_m, 1))
 
-    def forward(self, a, x):
+    def forward(self, x, a):
         for l in self.ac_layers:
             a = l(a)
         for l in self.ob_layers:
             x = l(x)
-        m = torch.cat([a, x], 1)
-        for l in self.ob_layers:
+        m = torch.cat([a, x], -1)
+        for l in self.merge_layers:
             m = l(m)
         return m

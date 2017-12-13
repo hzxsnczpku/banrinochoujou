@@ -3,6 +3,7 @@ from torch.multiprocessing import Queue
 
 from basic_utils.env_wrapper import Scaler
 from models.agents import *
+from gym.spaces import Discrete, Box
 
 
 class Path_Data_generator:
@@ -218,6 +219,7 @@ def path_rollout(agent,
     while True:
         env.set_scaler(scale)
         ob, info = env.reset()
+        agent.reset()
         now_repeat = 0
         for k in info:
             single_data[k].append(info[k])
@@ -227,7 +229,7 @@ def path_rollout(agent,
                 env.render()
             single_data["observation"].append(ob)
             if now_repeat == 0:
-                action = agent.act(ob.reshape((1,) + ob.shape))
+                action = agent.act(ob.reshape((1,) + ob.shape))[0]
             now_repeat = (now_repeat + 1) % action_repeat
             single_data["action"].append(action)
             ob, rew, done, info = env.step(agent.process_act(action))
@@ -278,7 +280,8 @@ def mem_step_rollout(agent,
     params, scale = recv_q.get()
     agent.set_params(params)
     epsilon = ini_epsilon
-    action_dim = env.action_space.n
+    if isinstance(env.action_space, Discrete):
+        action_dim = env.action_space.n
     epsilon_decay = (epsilon - final_epsilon) / explore_len
 
     single_data = defaultdict(list)
@@ -286,6 +289,7 @@ def mem_step_rollout(agent,
     while True:
         env.set_scaler(scale)
         ob, info = env.reset()
+        agent.reset()
         now_repeat = 0
         for k in info:
             single_data[k].append(info[k])
@@ -295,7 +299,7 @@ def mem_step_rollout(agent,
                 env.render()
             single_data["observation"].append(ob)
             if now_repeat == 0:
-                action = agent.act(ob.reshape((1,) + ob.shape))
+                action = agent.act(ob.reshape((1,) + ob.shape))[0]
                 if np.random.rand() < epsilon:
                     action = np.random.randint(0, action_dim)
                 if epsilon > final_epsilon:

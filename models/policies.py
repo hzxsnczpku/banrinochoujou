@@ -3,18 +3,27 @@ from basic_utils.utils import *
 
 
 class StochPolicy:
-    def __init__(self, net, probtype, updater):
+    def __init__(self, net, probtype, updater, target_net=None, tau=0.01, update_target_every=None):
         self.net = net
+        self.target_net = target_net
+        if target_net is not None:
+            self.target_updater = Target_updater(self.net, self.target_net, tau, update_target_every)
         self.probtype = probtype
         self.updater = updater
 
-    def act(self, ob):
+    def act(self, ob, target=False):
         ob = turn_into_cuda(np_to_var(ob))
-        prob = self.net(ob).data.cpu().numpy()
-        return self.probtype.sample(prob)[0]
+        if target:
+            prob = self.target_net(ob).data.cpu().numpy()
+        else:
+            prob = self.net(ob).data.cpu().numpy()
+        return self.probtype.sample(prob)
 
     def update(self, *args):
-        return self.updater(*args)
+        stats = self.updater(*args)
+        if self.target_net is not None:
+            self.target_updater.update()
+        return stats
 
     def save_model(self, name):
         torch.save(self.net, name + "_policy.pkl")
@@ -22,6 +31,8 @@ class StochPolicy:
     def load_model(self, name):
         net = torch.load(name + "_policy.pkl")
         self.net.load_state_dict(net.state_dict())
+        if self.target_net is not None:
+            self.target_net.load_state_dict(net.state_dict())
 
 
 # ================================================================

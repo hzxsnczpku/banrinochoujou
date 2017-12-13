@@ -22,10 +22,11 @@ class ValueFunction:
 
 
 class QValueFunction:
-    def __init__(self, net, target_net, optimizer):
+    def __init__(self, net, target_net, optimizer, tau=0.01, update_target_every=None):
         self.net = net
         self.target_net = target_net
         self.optimizer = optimizer
+        self.target_updater = Target_updater(self.net, self.target_net, tau, update_target_every)
 
     def predict(self, ob_no, target=False):
         observations = turn_into_cuda(np_to_var(np.array(ob_no)))
@@ -38,7 +39,9 @@ class QValueFunction:
         return np.argmax(self.predict(ob_no))
 
     def fit(self, paths):
-        return self.optimizer(paths)
+        stat = self.optimizer(paths)
+        self.target_updater.update()
+        return stat
 
     def save_model(self, name):
         torch.save(self.net, name + "_baseline.pkl")
@@ -50,21 +53,24 @@ class QValueFunction:
 
 
 class QValueFunction_deterministic:
-    def __init__(self, net, target_net, optimizer):
+    def __init__(self, net, target_net, optimizer, tau=0.01, update_target_every=None):
         self.net = net
         self.target_net = target_net
-        self.optimizer = optimizer(self.net, self.target_net)
+        self.optimizer = optimizer
+        self.target_updater = Target_updater(self.net, self.target_net, tau, update_target_every)
 
     def predict(self, ob_no, action, target=False):
         observations = turn_into_cuda(np_to_var(np.array(ob_no)))
         actions = turn_into_cuda(np_to_var(np.array(action)))
         if not target:
-            return self.net(actions,observations).data.cpu().numpy()
+            return self.net(observations, actions).data.cpu().numpy()
         else:
-            return self.target_net(actions, observations).data.cpu().numpy()
+            return self.target_net(observations, actions).data.cpu().numpy()
 
     def fit(self, paths):
-        return self.optimizer(paths)
+        stat = self.optimizer(paths)
+        self.target_updater.update()
+        return stat
 
     def save_model(self, name):
         torch.save(self.net, name + "_baseline.pkl")
@@ -72,3 +78,4 @@ class QValueFunction_deterministic:
     def load_model(self, name):
         net = torch.load(name + "_baseline.pkl")
         self.net.load_state_dict(net.state_dict())
+        self.target_net.load_state_dict(net.state_dict())

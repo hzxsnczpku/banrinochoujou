@@ -345,6 +345,30 @@ class Evolution_Updater:
 
 
 # ================================================================
+# DDPG Updater
+# ================================================================
+class DDPG_Updater:
+    def __init__(self, net, q_net, lr, get_data=True):
+        self.net = net
+        self.q_net = q_net
+        self.get_info = get_data
+        self.optimizer = optim.Adam(self.net.parameters(), lr=lr)
+
+    def __call__(self, path):
+        observations = turn_into_cuda(path["observation"])
+
+        min_q_value = -self.q_net(observations, self.net(observations)).mean()
+
+        self.net.zero_grad()
+        self.q_net.zero_grad()
+        min_q_value.backward()
+        self.optimizer.step()
+        self.q_net.zero_grad()
+
+        return {}
+
+
+# ================================================================
 # Adam Optimizer
 # ================================================================
 class Adam_Optimizer:
@@ -405,14 +429,10 @@ class Adam_Optimizer:
 # Adam Q-Learning Optimizer
 # ================================================================
 class Adam_Q_Optimizer:
-    def __init__(self, net, target_net, lr, gamma, update_target_every, get_data=True):
+    def __init__(self, net, lr, get_data=True):
         self.net = net
-        self.target_net = target_net
         self.optimizer = optim.Adam(params=self.net.parameters(), lr=lr)
-        self.gamma = gamma
-        self.count = 0
         self.get_data = get_data
-        self.update_target_every = update_target_every
 
     def _derive_info(self, observations, y_targ, actions):
         y_pred = self.net(observations).gather(1, actions.long())
@@ -432,16 +452,50 @@ class Adam_Q_Optimizer:
 
         td_err = torch.abs(self.net(observations).gather(1, actions.long()) - y_targ)
         loss = (td_err.pow(2) * weights).sum() if weights is not None else td_err.pow(2).mean()
+
         self.net.zero_grad()
         loss.backward()
         self.optimizer.step()
-
-        self.count += 1
-        if self.count % self.update_target_every == 0:
-            self.target_net.load_state_dict(self.net.state_dict())
 
         if self.get_data:
             info_after = self._derive_info(observations, y_targ, actions)
             return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
 
         return None, {"td_err": td_err.data.cpu().numpy()}
+
+
+# ================================================================
+# DDPG Optimizer
+# ================================================================
+class DDPG_Optimizer:
+    def __init__(self, net, lr, get_data=True):
+        self.net = net
+        self.get_data = get_data
+        self.optimizer = optim.Adam(self.net.parameters(), lr=lr)
+
+    def _derive_info(self, observations, y_targ, actions):
+        y_pred = self.net(observations, actions)
+        explained_var = 1 - torch.var(y_targ - y_pred) / torch.var(y_targ)
+        loss = (y_targ - y_pred).pow(2).mean()
+        info = {'explained_var': explained_var.data[0], 'loss': loss.data[0]}
+        return info
+
+    def __call__(self, path):
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        weights = turn_into_cuda(path["weights"]) if "weights" in path else None
+        y_targ = turn_into_cuda(path['y_targ'])
+
+        if self.get_data:
+            info_before = self._derive_info(observations, y_targ, actions)
+
+        td_err = torch.abs(self.net(observations, actions) - y_targ)
+        loss = (td_err.pow(2) * weights).sum() if weights is not None else td_err.pow(2).mean()
+
+        self.net.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        if self.get_data:
+            info_after = self._derive_info(observations, y_targ, actions)
+            return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}

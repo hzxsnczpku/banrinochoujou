@@ -30,6 +30,9 @@ class BasicAgent:
     def load_model(self, name):
         raise NotImplementedError
 
+    def reset(self):
+        pass
+
 
 # ================================================================
 # Policy Based Agent
@@ -115,23 +118,27 @@ class Evolution_Based_Agent(BasicAgent):
 # Deterministic Policy Based Agent
 # ================================================================
 class Deterministic_Policy_Based_Agent(BasicAgent):
-    def __init__(self, updater, optimizer):
-        self.policy, self.target_policy = make_policy_deterministic(updater)
-        self.baseline = make_q_baseline_deterministic(optimizer)
-        self.memory = ReplayBuffer(self.cfg)
-        self.stochastic = True
+    def __init__(self, policy, baseline, noise, gamma):
+        self.policy = policy
+        self.baseline = baseline
+        self.noise = noise
+        self.gamma = gamma
 
     def act(self, ob_no):
-        return self.policy.act(ob_no, stochastic=self.stochastic)
+        action = self.policy.act(ob_no)
+        noise = self.noise.noise()
+        return action + noise
 
     def update(self, paths):
-        compute_advantage(self.baseline, paths, gamma=self.cfg["gamma"], lam=self.cfg["lam"])
-        keys = ["observation", "action", "advantage", "return"]
-        processed_path = pre_process_path(paths, keys)
+        if paths is None:
+            return None, None
+        compute_target_determinstic(self.baseline, self.policy, paths, gamma=self.gamma)
+        keys = ["observation", "action", "y_targ"]
+        processed_path = pre_process_path([paths], keys)
+        vf_stats, info = self.baseline.fit(processed_path)
         pol_stats = self.policy.update(processed_path)
-        vf_stats = self.baseline.fit(processed_path)
-        a = [("v", vf_stats), ("pol", pol_stats)]
-        return a
+        a = [("q", vf_stats), ("pol", pol_stats)]
+        return a, {'idxes': paths["idxes"], 'td_err': info["td_err"]}
 
     def save_model(self, name):
         self.policy.save_model(name)
@@ -147,6 +154,9 @@ class Deterministic_Policy_Based_Agent(BasicAgent):
     def set_params(self, state_dicts):
         self.policy.net.load_state_dict(state_dicts[0])
         self.baseline.net.load_state_dict(state_dicts[1])
+
+    def reset(self):
+        self.noise.reset()
 
 
 # ================================================================
@@ -350,13 +360,13 @@ class DQN_Agent(Value_Based_Agent):
                  update_target_every=500,
                  get_info=True):
         optimizer = Adam_Q_Optimizer(net=net,
-                                     target_net=target_net,
-                                     gamma=gamma,
                                      lr=lr,
-                                     update_target_every=update_target_every,
                                      get_data=get_info)
 
-        baseline = QValueFunction(net=net, target_net=target_net, optimizer=optimizer)
+        baseline = QValueFunction(net=net,
+                                  target_net=target_net,
+                                  optimizer=optimizer,
+                                  update_target_every=update_target_every)
 
         self.name = 'DQN_Agent'
         Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=False)
@@ -374,13 +384,13 @@ class Double_DQN_Agent(Value_Based_Agent):
                  update_target_every=500,
                  get_info=True):
         optimizer = Adam_Q_Optimizer(net=net,
-                                     target_net=target_net,
-                                     gamma=gamma,
                                      lr=lr,
-                                     update_target_every=update_target_every,
                                      get_data=get_info)
 
-        baseline = QValueFunction(net=net, target_net=target_net, optimizer=optimizer)
+        baseline = QValueFunction(net=net,
+                                  target_net=target_net,
+                                  optimizer=optimizer,
+                                  update_target_every=update_target_every)
 
         self.name = 'Double_DQN_Agent'
         Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=True)
@@ -396,8 +406,54 @@ class Evolution_Agent(Evolution_Based_Agent):
                  lr_updater=0.01,
                  n_kid=10,
                  sigma=0.05):
-        updater = Evolution_Updater(lr=lr_updater, n_kid=n_kid, net=pol_net, sigma=sigma)
-        policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
+        updater = Evolution_Updater(lr=lr_updater,
+                                    n_kid=n_kid,
+                                    net=pol_net,
+                                    sigma=sigma)
+        policy = StochPolicy(net=pol_net,
+                             probtype=probtype,
+                             updater=updater)
 
         self.name = 'Evolution_Agent'
         Evolution_Based_Agent.__init__(self, policy=policy, n_kid=n_kid, sigma=sigma)
+
+
+# ================================================================
+# Deep Deterministic Policy Gradient
+# ================================================================
+class DDPG_Agent(Deterministic_Policy_Based_Agent):
+    def __init__(self,
+                 policy_net,
+                 policy_target_net,
+                 q_net,
+                 q_target_net,
+                 noise,
+                 probtype,
+                 lr_updater,
+                 lr_optimizer,
+                 gamma=0.99,
+                 tau=0.01,
+                 update_target_every=None,
+                 get_info=True):
+        updater = DDPG_Updater(net=policy_net,
+                               lr=lr_updater,
+                               q_net=q_net,
+                               get_data=get_info)
+        policy = StochPolicy(net=policy_net,
+                             target_net=policy_target_net,
+                             tau=tau,
+                             update_target_every=update_target_every,
+                             probtype=probtype,
+                             updater=updater)
+
+        optimizer = DDPG_Optimizer(net=q_net,
+                                   lr=lr_optimizer,
+                                   get_data=get_info)
+        baseline = QValueFunction_deterministic(net=q_net,
+                                                target_net=q_target_net,
+                                                optimizer=optimizer,
+                                                tau=tau,
+                                                update_target_every=update_target_every)
+
+        self.name = 'DDPG_Agent'
+        Deterministic_Policy_Based_Agent.__init__(self, policy=policy, baseline=baseline, noise=noise, gamma=gamma)

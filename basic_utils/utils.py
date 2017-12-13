@@ -86,6 +86,25 @@ def compute_target(qf, path, gamma, double=False):
     path['y_targ'] = y_targ * not_dones * gamma + rewards
 
 
+def compute_target_determinstic(qf, pol, path, gamma):
+    """
+    Compute the one step bootstrap target for DQN updating.
+
+    Args:
+        qf: the q value function
+        path: the data paths for calculation. The result is also saved into it.
+        gamma: discount factor
+        double: whether to use the double network
+    """
+    next_observations = path['next_observation']
+    not_dones = path['not_done']
+    rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
+
+    action = pol.act(next_observations, target=True)
+    y_targ = qf.predict(next_observations, action, target=True)
+    path['y_targ'] = y_targ.reshape((-1,)) * not_dones * gamma + rewards
+
+
 class Callback:
     """
     The information printing class.
@@ -274,6 +293,13 @@ def set_flat_params_to(model, flat_params):
 
 
 def set_flat_grads_to(model, flat_grads):
+    """
+    Set the flattened gradients to the model.
+
+    Args:
+        model: the model to which the gradients are set
+        flat_grads: the flattened gradients to be set
+    """
     prev_ind = 0
     for param in model.parameters():
         flat_size = int(np.prod(list(param.size())))
@@ -282,10 +308,22 @@ def set_flat_grads_to(model, flat_grads):
 
 
 def turn_into_cuda(var):
+    """
+    Change a variable or tensor into cuda.
+
+    Args:
+        var: the variable to be changed
+
+    Return:
+        the changed variable
+    """
     return var.cuda() if use_cuda else var
 
 
 def log_gamma(xx):
+    """
+    The log gamma function.
+    """
     gamma_coeff = [
         76.18009172947146,
         -86.50532032941677,
@@ -307,6 +345,9 @@ def log_gamma(xx):
 
 
 def digamma(xx):
+    """
+    The digamma function.
+    """
     gamma_coeff = [
         76.18009172947146,
         -86.50532032941677,
@@ -328,26 +369,53 @@ def digamma(xx):
 
 
 def merge_dict(path, single_trans):
+    """
+    Merge a single transition into the total path.
+    """
     for k in single_trans:
         path[k] += single_trans[k]
     return 1 - single_trans['not_done'][0]
 
 
-def merge_train_data(u_stats):
-    merged_dicts = dict()
-    re = []
-    for u in u_stats:
-        for d in u:
-            if d[0] not in merged_dicts:
-                merged_dicts[d[0]] = defaultdict(list)
-            for k in d[1]:
-                merged_dicts[d[0]][k].append(d[1][k])
-    for di in merged_dicts:
-        for k in merged_dicts[di]:
-            merged_dicts[di][k] = np.mean(merged_dicts[di][k])
-        re.append((di, merged_dicts[di]))
-    return re
-
-
 def sign(k_id):
     return -1. if k_id % 2 == 0 else 1.
+
+
+class OUNoise:
+    """OU Noise"""
+    def __init__(self, action_dimension, mu=0, theta=0.15, sigma=0.2):
+        self.action_dimension = action_dimension
+        self.mu = mu
+        self.theta = theta
+        self.sigma = sigma
+        self.state = np.ones(self.action_dimension) * self.mu
+        self.reset()
+
+    def reset(self):
+        self.state = np.ones(self.action_dimension) * self.mu
+
+    def noise(self):
+        x = self.state
+        dx = self.theta * (self.mu - x) + self.sigma * np.random.randn(len(x))
+        self.state = x + dx
+        return self.state
+
+
+class Target_updater:
+    def __init__(self, net, target_net, tau=0.01, update_target_every=None):
+        self.net = net
+        self.target_net = target_net
+        self.counter = 0
+        self.update_target_every = update_target_every
+        self.tau = tau
+
+    def update(self):
+        self.counter += 1
+        if self.update_target_every is not None:
+            params = get_flat_params_from(self.net)
+            set_flat_params_to(self.target_net, params)
+        else:
+            params = get_flat_params_from(self.net)
+            params_target = get_flat_params_from(self.target_net)
+            new_params = self.tau * params + (1 - self.tau) * params_target
+            set_flat_params_to(self.target_net, new_params)
