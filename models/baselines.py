@@ -2,9 +2,9 @@ from basic_utils.utils import *
 
 
 class ValueFunction:
-    def __init__(self, net, optimizer, cfg):
+    def __init__(self, net, optimizer):
         self.net = net
-        self.optimizer = optimizer(self.net, cfg)
+        self.optimizer = optimizer
 
     def predict(self, ob):
         observations = turn_into_cuda(np_to_var(np.array(ob)))
@@ -22,10 +22,10 @@ class ValueFunction:
 
 
 class QValueFunction:
-    def __init__(self, net, target_net, optimizer, cfg):
+    def __init__(self, net, target_net, optimizer):
         self.net = net
         self.target_net = target_net
-        self.optimizer = optimizer(self.net, self.target_net, cfg)
+        self.optimizer = optimizer
 
     def predict(self, ob_no, target=False):
         observations = turn_into_cuda(np_to_var(np.array(ob_no)))
@@ -50,10 +50,10 @@ class QValueFunction:
 
 
 class QValueFunction_deterministic:
-    def __init__(self, net, target_net, optimizer, cfg):
+    def __init__(self, net, target_net, optimizer):
         self.net = net
         self.target_net = target_net
-        self.optimizer = optimizer(self.net, self.target_net, cfg)
+        self.optimizer = optimizer(self.net, self.target_net)
 
     def predict(self, ob_no, action, target=False):
         observations = turn_into_cuda(np_to_var(np.array(ob_no)))

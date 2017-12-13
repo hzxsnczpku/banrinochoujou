@@ -7,13 +7,13 @@ from basic_utils.utils import *
 # Trust Region Policy Optimization Updater
 # ================================================================
 class TRPO_Updater:
-    def __init__(self, net, probtype, cfg):
+    def __init__(self, net, probtype, max_kl, cg_damping, cg_iters, get_info):
         self.net = net
         self.probtype = probtype
-        self.max_kl = cfg["kl_target"]
-        self.cg_damping = cfg["cg_damping"]
-        self.cg_iters = cfg["cg_iters"]
-        self.get_info = cfg["get_info"]
+        self.max_kl = max_kl
+        self.cg_damping = cg_damping
+        self.cg_iters = cg_iters
+        self.get_info = get_info
 
     def conjugate_gradients(self, b, nsteps, residual_tol=1e-10):
         x = torch.zeros(b.size())
@@ -107,14 +107,14 @@ class TRPO_Updater:
 # Adam Updater
 # ================================================================
 class Adam_Updater:
-    def __init__(self, net, probtype, cfg):
+    def __init__(self, net, probtype, lr, epochs, kl_target, get_info):
         self.net = net
         self.probtype = probtype
-        self.lr = cfg["lr_updater"]
-        self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_updater"])
-        self.kl_target = cfg["kl_target"]
-        self.get_info = cfg["get_info"]
-        self.epochs = cfg["epochs_updater"]
+        self.lr = lr
+        self.optimizer = optim.Adam(params=self.net.parameters(), lr=lr)
+        self.kl_target = kl_target
+        self.get_info = get_info
+        self.epochs = epochs
 
     def _derive_info(self, observations, actions, advantages, fixed_dist):
         prob = self.net(observations)
@@ -157,19 +157,20 @@ class Adam_Updater:
 # Ppo Updater
 # ================================================================
 class PPO_adapted_Updater:
-    def __init__(self, net, probtype, cfg):
+    def __init__(self, net, probtype, beta, kl_cutoff_coeff, kl_target, epochs, lr, beta_range, adj_thres,
+                 get_info=True):
         self.net = net
         self.probtype = probtype
-        self.beta = cfg["beta_init"]  # dynamically adjusted D_KL loss multiplier
-        self.eta = cfg["kl_cutoff_coeff"]
-        self.kl_targ = cfg["kl_target"]
-        self.epochs = cfg["epochs_updater"]
-        self.lr = cfg["lr_updater"]
+        self.beta = beta  # dynamically adjusted D_KL loss multiplier
+        self.eta = kl_cutoff_coeff
+        self.kl_targ = kl_target
+        self.epochs = epochs
+        self.lr = lr
         self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
-        self.get_info = cfg["get_info"]
-        self.beta_upper = cfg["beta_range"][1]
-        self.beta_lower = cfg["beta_range"][0]
-        self.beta_adj_thres = cfg["adj_thres"]
+        self.get_info = get_info
+        self.beta_upper = beta_range[1]
+        self.beta_lower = beta_range[0]
+        self.beta_adj_thres = adj_thres
 
     def _derive_info(self, observes, actions, advantages, old_prob):
         prob = self.net(observes)
@@ -236,18 +237,18 @@ class PPO_adapted_Updater:
 
 
 class PPO_clip_Updater:
-    def __init__(self, net, probtype, cfg):
+    def __init__(self, net, probtype, epsilon, kl_target, epochs, adj_thres, clip_range, lr, get_info=True):
         self.net = net
         self.probtype = probtype
-        self.clip_epsilon = cfg["clip_epsilon_init"]
-        self.kl_target = cfg["kl_target"]
-        self.epochs = cfg["epochs_updater"]
-        self.get_info = cfg["get_info"]
-        self.clip_adj_thres = cfg["adj_thres"]
-        self.clip_upper = cfg["clip_range"][1]
-        self.clip_lower = cfg["clip_range"][0]
-        self.lr = cfg["lr_updater"]
-        self.optimizer = optim.Adam(self.net.parameters(), lr=cfg["lr_updater"])
+        self.clip_epsilon = epsilon
+        self.kl_target = kl_target
+        self.epochs = epochs
+        self.get_info = get_info
+        self.clip_adj_thres = adj_thres
+        self.clip_upper = clip_range[1]
+        self.clip_lower = clip_range[0]
+        self.lr = lr
+        self.optimizer = optim.Adam(self.net.parameters(), lr=lr)
 
     def _derive_info(self, observations, actions, advantages, fixed_dist, fixed_prob):
         new_prob = self.net(observations)
@@ -313,33 +314,29 @@ class PPO_clip_Updater:
 # Evolution Updater
 # ================================================================
 class Evolution_Updater:
-    def __init__(self, net, probtype, cfg):
-        self.cfg = cfg
+    def __init__(self, net, n_kid, lr, sigma, get_info=True):
         self.net = net
-        self.n_kid = cfg['n_kid']
-        self.optimizer = optim.SGD(self.net.parameters(), lr=cfg["ES_lr"], momentum=0.9)
-        self.get_info = cfg["get_info"]
-        base = self.n_kid * 2
-        rank = np.arange(1, base + 1)
-        util_ = np.maximum(0, np.log(base / 2 + 1) - np.log(rank))
-        self.utility = util_ / util_.sum() - 1 / base
+        self.n_kid = n_kid
+        self.optimizer = optim.SGD(self.net.parameters(), lr=lr, momentum=0.9)
+        self.get_info = get_info
+        self.sigma = sigma
 
-    def __call__(self, path):
-        noise_seed = path[0]['seed']
+    def __call__(self, path, noise_seed):
         path_info = [p['reward_raw'] for p in path]
         path_index = [p['index'] for p in path]
         total_reward = np.zeros((2 * self.n_kid,))
         for i in range(len(path_index)):
             total_reward[path_index[i]] += np.sum(path_info[i])
 
-        kids_rank = np.argsort(total_reward)[::-1]
+        total_reward = (total_reward - np.mean(total_reward)) / np.std(total_reward)
 
         flat_params = get_flat_params_from(self.net).cpu().numpy()
         cumulative_update = np.zeros_like(flat_params)
-        for ui, k_id in enumerate(kids_rank):
-            np.random.seed(noise_seed[k_id])  # reconstruct noise using seed
-            cumulative_update += self.utility[ui] * sign(k_id) * np.random.randn(flat_params.size)
-        cumulative_update /= -2*self.n_kid*self.cfg['sigma']
+        for k_id in range(2 * self.n_kid):
+            np.random.seed(noise_seed[k_id])
+            cumulative_update += sign(k_id) * np.random.randn(flat_params.size) * total_reward[k_id]
+
+        cumulative_update /= -2 * self.n_kid * self.sigma
         self.net.zero_grad()
         set_flat_grads_to(self.net, turn_into_cuda(torch.from_numpy(cumulative_update)))
         self.optimizer.step()
@@ -351,14 +348,14 @@ class Evolution_Updater:
 # Adam Optimizer
 # ================================================================
 class Adam_Optimizer:
-    def __init__(self, net, cfg):
+    def __init__(self, net, lr, epochs, batch_size, get_data=True):
         self.net = net
-        self.optimizer = optim.Adam(self.net.parameters(), cfg['lr_optimizer'])
-        self.epochs = cfg["epoches_optimizer"]
+        self.optimizer = optim.Adam(self.net.parameters(), lr)
+        self.epochs = epochs
         self.replay_buffer_x = None
         self.replay_buffer_y = None
-        self.get_data = cfg['get_info']
-        self.default_batch_size = cfg['batch_size_optimizer']
+        self.get_data = get_data
+        self.default_batch_size = batch_size
 
     def _derive_info(self, observations, y_targ):
         y_pred = self.net(observations)
@@ -387,7 +384,7 @@ class Adam_Optimizer:
 
         for e in range(self.epochs):
             sortinds = np.random.permutation(observations.size()[0])
-            sortinds = turn_into_cuda(torch.from_numpy(sortinds).long())
+            sortinds = turn_into_cuda(np_to_var(sortinds).long())
             for j in range(num_batches):
                 start = j * batch_size
                 end = (j + 1) * batch_size
@@ -408,14 +405,14 @@ class Adam_Optimizer:
 # Adam Q-Learning Optimizer
 # ================================================================
 class Adam_Q_Optimizer:
-    def __init__(self, net, target_net, cfg):
+    def __init__(self, net, target_net, lr, gamma, update_target_every, get_data=True):
         self.net = net
         self.target_net = target_net
-        self.optimizer = optim.Adam(params=self.net.parameters(), lr=cfg["lr_optimizer"])
-        self.gamma = cfg["gamma"]
+        self.optimizer = optim.Adam(params=self.net.parameters(), lr=lr)
+        self.gamma = gamma
         self.count = 0
-        self.get_data = cfg['get_info']
-        self.update_target_every = cfg["update_target_every"]
+        self.get_data = get_data
+        self.update_target_every = update_target_every
 
     def _derive_info(self, observations, y_targ, actions):
         y_pred = self.net(observations).gather(1, actions.long())
