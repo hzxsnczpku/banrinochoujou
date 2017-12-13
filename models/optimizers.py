@@ -499,3 +499,23 @@ class DDPG_Optimizer:
         if self.get_data:
             info_after = self._derive_info(observations, y_targ, actions)
             return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
+
+
+class Target_updater:
+    def __init__(self, net, target_net, tau=0.01, update_target_every=None):
+        self.net = net
+        self.target_net = target_net
+        self.counter = 0
+        self.update_target_every = update_target_every
+        self.tau = tau
+
+    def update(self):
+        self.counter += 1
+        if self.update_target_every is not None:
+            params = get_flat_params_from(self.net)
+            set_flat_params_to(self.target_net, params)
+        else:
+            params = get_flat_params_from(self.net)
+            params_target = get_flat_params_from(self.target_net)
+            new_params = self.tau * params + (1 - self.tau) * params_target
+            set_flat_params_to(self.target_net, new_params)

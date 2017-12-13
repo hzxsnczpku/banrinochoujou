@@ -1,4 +1,5 @@
 from basic_utils.utils import *
+from models.optimizers import Target_updater
 
 
 class ValueFunction:
@@ -36,7 +37,7 @@ class QValueFunction:
             return self.target_net(observations).data.cpu().numpy()
 
     def act(self, ob_no):
-        return np.argmax(self.predict(ob_no))
+        return self.predict(ob_no)
 
     def fit(self, paths):
         stat = self.optimizer(paths)

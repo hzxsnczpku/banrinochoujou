@@ -3,6 +3,7 @@ from models.net_builder import *
 from basic_utils.env_wrapper import Vec_env_wrapper
 from models.agents import *
 from basic_utils.options import *
+from basic_utils.exploration_noise import OUNoise_Exploration
 
 
 def train_MountainCarContinuous_DDPG(load_model=False, render=False, save_every=None, prioritized=False):
@@ -11,12 +12,13 @@ def train_MountainCarContinuous_DDPG(load_model=False, render=False, save_every=
     ac_space = env.action_space
 
     probtype = Deterministic(env.action_space)
-    noise = OUNoise(ac_space.shape[0])
+    noise = OUNoise_Exploration(ac_space.shape[0], init_epsilon=0.2, final_epsilon=0.2, explore_len=100000)
 
     pol_net = MLPs_pol(ob_space, net_topology_pol_vec, probtype.output_layers)
     target_pol_net = MLPs_pol(ob_space, net_topology_pol_vec, probtype.output_layers)
     q_net = MLPs_q_deterministic(ob_space, ac_space, net_topology_det_vec)
     target_q_net = MLPs_q_deterministic(ob_space, ac_space, net_topology_det_vec)
+
     if use_cuda:
         pol_net.cuda()
         target_pol_net.cuda()
@@ -27,12 +29,11 @@ def train_MountainCarContinuous_DDPG(load_model=False, render=False, save_every=
                        policy_target_net=target_pol_net,
                        q_net=q_net,
                        q_target_net=target_q_net,
-                       noise=noise,
                        probtype=probtype,
-                       lr_updater=9e-4,
+                       lr_updater=1e-4,
                        lr_optimizer=1e-3,
                        gamma=0.99,
-                       tau=0.01,
+                       tau=0.001,
                        update_target_every=None,
                        get_info=True)
 
@@ -49,9 +50,7 @@ def train_MountainCarContinuous_DDPG(load_model=False, render=False, save_every=
                     memory=memory,
                     n_worker=2,
                     step_num=4,
-                    explore_len=10000,
-                    ini_epsilon=0,
-                    final_epsilon=0,
+                    noise=noise,
                     rand_explore_len=5000,
                     save_every=save_every,
                     render=render,

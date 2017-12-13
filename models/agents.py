@@ -30,9 +30,6 @@ class BasicAgent:
     def load_model(self, name):
         raise NotImplementedError
 
-    def reset(self):
-        pass
-
 
 # ================================================================
 # Policy Based Agent
@@ -118,16 +115,13 @@ class Evolution_Based_Agent(BasicAgent):
 # Deterministic Policy Based Agent
 # ================================================================
 class Deterministic_Policy_Based_Agent(BasicAgent):
-    def __init__(self, policy, baseline, noise, gamma):
+    def __init__(self, policy, baseline, gamma):
         self.policy = policy
         self.baseline = baseline
-        self.noise = noise
         self.gamma = gamma
 
     def act(self, ob_no):
-        action = self.policy.act(ob_no)
-        noise = self.noise.noise()
-        return action + noise
+        return self.policy.act(ob_no)
 
     def update(self, paths):
         if paths is None:
@@ -154,9 +148,6 @@ class Deterministic_Policy_Based_Agent(BasicAgent):
     def set_params(self, state_dicts):
         self.policy.net.load_state_dict(state_dicts[0])
         self.baseline.net.load_state_dict(state_dicts[1])
-
-    def reset(self):
-        self.noise.reset()
 
 
 # ================================================================
@@ -427,7 +418,6 @@ class DDPG_Agent(Deterministic_Policy_Based_Agent):
                  policy_target_net,
                  q_net,
                  q_target_net,
-                 noise,
                  probtype,
                  lr_updater,
                  lr_optimizer,
@@ -456,4 +446,4 @@ class DDPG_Agent(Deterministic_Policy_Based_Agent):
                                                 update_target_every=update_target_every)
 
         self.name = 'DDPG_Agent'
-        Deterministic_Policy_Based_Agent.__init__(self, policy=policy, baseline=baseline, noise=noise, gamma=gamma)
+        Deterministic_Policy_Based_Agent.__init__(self, policy=policy, baseline=baseline, gamma=gamma)

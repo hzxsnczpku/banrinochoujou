@@ -3,7 +3,6 @@ from torch.multiprocessing import Queue
 
 from basic_utils.env_wrapper import Scaler
 from models.agents import *
-from gym.spaces import Discrete, Box
 
 
 class Path_Data_generator:
@@ -94,9 +93,7 @@ class Memory_Data_generator:
                  env,
                  n_worker,
                  step_num,
-                 ini_epsilon,
-                 final_epsilon,
-                 explore_len,
+                 noise,
                  rand_explore_len,
                  action_repeat,
                  render):
@@ -108,9 +105,7 @@ class Memory_Data_generator:
                env: the environment
                n_worker: the number of parallel workers
                step_num: number of steps to generate at every call
-               ini_epsilon: initial epsilon
-               final_epsilon: final epsilon
-               explore_len: length for epsilon to decay
+               noise: a class to generate noise
                rand_explore_len: length for the agent to randomly select actions at the beginning of the game
                action_repeat: number of repeated actions
                render: whether display the game or not
@@ -120,6 +115,7 @@ class Memory_Data_generator:
         self.memory = memory
         self.n_worker = n_worker
         self.rand_explore_len = rand_explore_len
+        self.extra_info_name = noise.extra_info
 
         self.workers = []
         self.senders = []
@@ -135,7 +131,7 @@ class Memory_Data_generator:
             self.senders.append(s)
             self.receivers.append(r)
             self.workers.append(mp.Process(target=mem_step_rollout, args=(
-                agent, env, step_num, ini_epsilon, final_epsilon, explore_len, r, s, render, action_repeat, i)))
+                agent, env, step_num, noise, r, s, render, action_repeat, i)))
         for worker in self.workers:
             worker.start()
 
@@ -184,8 +180,9 @@ class Memory_Data_generator:
             if counter == self.n_worker:
                 sample_return = self.memory.sample() if len(self.memory) > self.rand_explore_len else None
                 path_info = [p['reward_raw'] for p in self.complete_paths]
-                extra_info = {"Memory_length": len(self.memory),
-                              'Epsilon': np.mean([k['epsilon'][-1] for k in self.complete_paths])}
+                extra_info = {"Memory_length": len(self.memory)}
+                for exk in self.extra_info_name:
+                    extra_info[exk] = np.mean([k[exk][-1] for k in self.complete_paths])
                 self.complete_paths = []
                 return sample_return, path_info, extra_info
 
@@ -219,7 +216,6 @@ def path_rollout(agent,
     while True:
         env.set_scaler(scale)
         ob, info = env.reset()
-        agent.reset()
         now_repeat = 0
         for k in info:
             single_data[k].append(info[k])
@@ -252,9 +248,7 @@ def path_rollout(agent,
 def mem_step_rollout(agent,
                      env,
                      step_num,
-                     ini_epsilon,
-                     final_epsilon,
-                     explore_len,
+                     noise,
                      require_q,
                      recv_q,
                      render,
@@ -267,9 +261,7 @@ def mem_step_rollout(agent,
         agent: the agent for action selection
         env: the environment
         step_num: number of steps to generate at every call
-        ini_epsilon: initial epsilon
-        final_epsilon: final epsilon
-        explore_len: length for epsilon to decay
+        noise: a class to generate noise
         require_q: a queue to put the generated data
         recv_q: a queue to get the params
         render: whether display the game or not
@@ -279,20 +271,16 @@ def mem_step_rollout(agent,
 
     params, scale = recv_q.get()
     agent.set_params(params)
-    epsilon = ini_epsilon
-    if isinstance(env.action_space, Discrete):
-        action_dim = env.action_space.n
-    epsilon_decay = (epsilon - final_epsilon) / explore_len
 
     single_data = defaultdict(list)
     count = 0
     while True:
         env.set_scaler(scale)
-        ob, info = env.reset()
-        agent.reset()
+        ob, env_info = env.reset()
+        noise.reset()
         now_repeat = 0
-        for k in info:
-            single_data[k].append(info[k])
+        for k in env_info:
+            single_data[k].append(env_info[k])
         done = False
         while not done:
             if render and process_id == 0:
@@ -300,18 +288,16 @@ def mem_step_rollout(agent,
             single_data["observation"].append(ob)
             if now_repeat == 0:
                 action = agent.act(ob.reshape((1,) + ob.shape))[0]
-                if np.random.rand() < epsilon:
-                    action = np.random.randint(0, action_dim)
-                if epsilon > final_epsilon:
-                    epsilon -= epsilon_decay
+                action, noise_info = noise.process_action(action)
             now_repeat = (now_repeat + 1) % action_repeat
 
-            single_data['epsilon'].append(epsilon)
+            for k in noise_info:
+                single_data[k].append(noise_info[k])
             single_data["action"].append(action)
-            ob, rew, done, info = env.step(action)
+            ob, rew, done, env_info = env.step(action)
             single_data["next_observation"].append(ob)
-            for k in info:
-                single_data[k].append(info[k])
+            for k in env_info:
+                single_data[k].append(env_info[k])
             single_data["reward"].append(rew)
             single_data["not_done"].append(1 - done)
 
