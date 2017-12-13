@@ -23,7 +23,6 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 
 ## TO BE IMPLEMENTED
 ### Algorithms
-*  DDPG
 *  Q Learning with a Duel Structure
 *  CEM
 *  acktr
@@ -35,7 +34,8 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 * Dirichlet
 
 ### Modules
-*  ICM
+* VIME
+* ICM
 
 ## How to Play
 For example, run the following code to train a TRPO Agent under the MuJoCo HalfCheetah-v1 environment:
