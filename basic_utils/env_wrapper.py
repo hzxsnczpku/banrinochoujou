@@ -7,13 +7,26 @@ from gym.spaces import Box
 
 
 class Scaler(object):
+    """
+    A class recording the mean and variance of the observation.
+    """
     def __init__(self, obs_dim):
+        """
+        Args:
+            obs_dim: dim of the observation
+        """
         self.vars = np.zeros(obs_dim)
         self.means = np.zeros(obs_dim)
         self.m = 0
         self.first_pass = True
 
     def update(self, x):
+        """
+        Update the stored statistics with the new paths.
+
+        Args:
+            x: new generated paths
+        """
         if self.first_pass:
             self.means = np.mean(x, axis=0)
             self.vars = np.var(x, axis=0)
@@ -33,11 +46,26 @@ class Scaler(object):
             self.m += n
 
     def get(self):
+        """
+        Return the stored statistics.
+
+        Return:
+            the scale and mean for the data.
+        """
         return 1/(np.sqrt(self.vars) + 0.1)/3, self.means
 
 
 class Vec_env_wrapper:
+    """
+    A wrapper for the environments whose observation is vector.
+    """
     def __init__(self, name, consec_frames, running_stat):
+        """
+        Args:
+            name: name of the game
+            consec_frames: number of observations to concatenate together
+            running_stat: whether to use normalization or not
+        """
         self.env = gym.make(name)
         self.name = name
         self.consec_frames = consec_frames
@@ -53,15 +81,34 @@ class Vec_env_wrapper:
         self.scale = None
 
     def set_scaler(self, scales):
+        """
+        Set the running stats.
+
+        Args:
+            scales: the stats to be set
+        """
         self.offset = scales[1]
         self.scale = scales[0]
 
     def _normalize_ob(self, ob):
+        """
+        Make observation normalization.
+
+        Args:
+            ob: observation to be normalized
+        """
         if not self.running_stat:
             return ob
         return (ob - self.offset) * self.scale
 
     def reset(self):
+        """
+        Reset the environment.
+
+        Return:
+            history_normalized: the concatenated and normalized observations
+            info: a dict containing the raw observations
+        """
         ob = self.env.reset()
         self.timestep = 0
         for i in range(self.consec_frames):
@@ -74,6 +121,18 @@ class Vec_env_wrapper:
         return history_normalized, info
 
     def step(self, action):
+        """
+        Take one step in the environment.
+
+        Args:
+            action: the action to take
+
+        Return:
+            history_normalized: the concatenated and normalized observations
+            r: reward
+            done: whether the game is over
+            info: a dict containing the raw observations and raw rewards.
+        """
         ob, r, done, info = self.env.step(action)
         self.timestep += 1e-3
         self.states.append(ob)
@@ -85,42 +144,81 @@ class Vec_env_wrapper:
         return history_normalized, r, done, info
 
     def render(self):
+        """
+        Display the game.
+        """
         self.env.render()
 
     def close(self):
+        """
+        Close the environment.
+        """
         self.env.close()
 
 
 class Fig_env_wrapper:
-    def __init__(self, cfg):
-        self.env = gym.make(cfg["ENV_NAME"])
-        self.consec_frames = cfg["consec_frames"]
-        self.image_size = cfg["image_size"]
+    """
+    A wrapper for the environments whose observation is figure.
+    """
+    def __init__(self, name, consec_frames, image_size, running_stat):
+        """
+        Args:
+            name: name of the game
+            consec_frames: number of observations to concatenate together
+            running_stat: whether to use normalization or not
+        """
+        self.env = gym.make(name)
+        self.consec_frames = consec_frames
+        self.image_size = image_size
         self.states = deque(maxlen=self.consec_frames)
         self.observation_space = Box(shape=(self.consec_frames,) + self.image_size, low=0, high=1)
         self.observation_space_sca = Box(shape=(self.consec_frames,) + self.image_size, low=0, high=1)
         self.action_space = self.env.action_space
 
-        self.running_stat = cfg["running_stat"]
+        self.running_stat = running_stat
         self.offset = None
         self.scale = None
 
     def set_scaler(self, scales):
+        """
+        Set the running stats.
+
+        Args:
+            scales: the stats to be set
+        """
         self.offset = scales[1]
         self.scale = scales[0]
 
     def _process(self, ob):
+        """
+        Process the image.
+
+        Args:
+            ob: the observation to be processed
+        """
         processed_observe = resize(rgb2gray(ob), self.image_size, mode='constant')
         return np.reshape(processed_observe, newshape=self.image_size + (1,))
 
     def _normalize_ob(self, ob):
+        """
+        Make observation normalization.
+
+        Args:
+            ob: observation to be normalized
+        """
         if not self.running_stat:
             return ob
         return (ob - self.offset) * self.scale
 
     def reset(self):
+        """
+        Reset the environment.
+
+        Return:
+            history_normalized: the concatenated and normalized observations
+            info: a dict containing the raw observations
+        """
         ob = self.env.reset()
-        self.timestep = 0
         ob = self._process(ob)
         for i in range(self.consec_frames):
             self.states.append(ob)
@@ -133,6 +231,18 @@ class Fig_env_wrapper:
         return history_normalized, info
 
     def step(self, action):
+        """
+        Take one step in the environment.
+
+        Args:
+            action: the action to take
+
+        Return:
+            history_normalized: the concatenated and normalized observations
+            r: reward
+            done: whether the game is over
+            info: a dict containing the raw observations and raw rewards.
+        """
         ob, r, done, info = self.env.step(action)
         ob = self._process(ob)
         self.states.append(ob)
@@ -144,7 +254,13 @@ class Fig_env_wrapper:
         return history_normalized, r, done, info
 
     def render(self):
+        """
+        Display the game.
+        """
         self.env.render()
 
     def close(self):
+        """
+        Close the environment.
+        """
         self.env.close()
