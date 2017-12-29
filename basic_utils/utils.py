@@ -292,6 +292,23 @@ def set_flat_params_to(model, flat_params):
         prev_ind += flat_size
 
 
+def get_flat_grads_from(model):
+    """
+    Get the flattened gradients from the model.
+
+    Args:
+        model: the model from which the parameters are derived
+
+    Return:
+        flat_param: the flattened parameters
+    """
+    grads = []
+    for param in model.parameters():
+        grads.append(param.grad.data.view(-1))
+    flat_grads = torch.cat(grads)
+    return flat_grads
+
+
 def set_flat_grads_to(model, flat_grads):
     """
     Set the flattened gradients to the model.

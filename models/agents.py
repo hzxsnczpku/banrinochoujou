@@ -15,6 +15,7 @@ class BasicAgent:
     """
     This is the abstract class of the agent.
     """
+
     def act(self, ob_no):
         """
         Get the action given the observation.
@@ -399,6 +400,48 @@ class DQN_Agent(Value_Based_Agent):
                                   update_target_every=update_target_every)
 
         self.name = 'DQN_Agent'
+        Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=False)
+
+
+# ================================================================
+# Bayesian Deep Q Learning
+# ================================================================
+class Bayesian_DQN_Agent(Value_Based_Agent):
+    def __init__(self,
+                 net,
+                 mean_net,
+                 std_net,
+                 target_net,
+                 target_mean_net,
+                 target_std_net,
+                 alpha=1,
+                 beta=1e-4,
+                 gamma=0.99,
+                 lr=1e-3,
+                 scale=1e-3,
+                 update_target_every=500,
+                 get_info=True):
+        optimizer = Bayesian_Q_Optimizer(net=net,
+                                         mean_net=mean_net,
+                                         std_net=std_net,
+                                         lr=lr,
+                                         alpha=alpha,
+                                         beta=beta,
+                                         scale=scale,
+                                         get_data=get_info)
+
+        baseline = QValueFunction_Bayesian(net=net,
+                                           mean_net=mean_net,
+                                           std_net=std_net,
+                                           target_net=target_net,
+                                           target_mean_net=target_mean_net,
+                                           target_std_net=target_std_net,
+                                           optimizer=optimizer,
+                                           scale=scale,
+                                           tau=0.01,
+                                           update_target_every=update_target_every)
+
+        self.name = 'Bayesian_DQN_Agent'
         Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=False)
 
 

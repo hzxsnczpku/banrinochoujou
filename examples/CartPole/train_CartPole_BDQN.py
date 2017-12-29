@@ -12,28 +12,40 @@ def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=F
     observation_space = env.observation_space
 
     net = MLPs_q(observation_space, action_space, net_topology_q_vec)
+    mean_net = MLPs_q(observation_space, action_space, net_topology_q_vec)
+    std_net = MLPs_q(observation_space, action_space, net_topology_q_vec)
     target_net = MLPs_q(observation_space, action_space, net_topology_q_vec)
-    noise = EpsilonGreedy_Exploration(action_n=action_space.n,
-                                      explore_len=10000,
-                                      init_epsilon=1.0,
-                                      final_epsilon=0.01)
+    target_mean_net = MLPs_q(observation_space, action_space, net_topology_q_vec)
+    target_std_net = MLPs_q(observation_space, action_space, net_topology_q_vec)
+    noise = NoNoise_Exploration()
 
     if use_cuda:
         net.cuda()
+        mean_net.cuda()
+        std_net.cuda()
         target_net.cuda()
+        target_mean_net.cuda()
+        target_std_net.cuda()
 
-    if double:
-        agent = Double_DQN_Agent(net=net, target_net=target_net, gamma=0.95)
-    else:
-        agent = DQN_Agent(net=net,
-                          target_net=target_net,
-                          gamma=0.95,
-                          lr=1e-3,
-                          update_target_every=500,
-                          get_info=True)
+    agent = Bayesian_DQN_Agent(net,
+                               mean_net,
+                               std_net,
+                               target_net,
+                               target_mean_net,
+                               target_std_net,
+                               alpha=1,
+                               beta=0,
+                               gamma=0.95,
+                               lr=1e-3,
+                               scale=1e-3,
+                               update_target_every=500,
+                               get_info=True)
 
     if prioritized:
-        memory = PrioritizedReplayBuffer(memory_cap=2000, batch_size_q=64)
+        memory = PrioritizedReplayBuffer(memory_cap=2000,
+                                         batch_size_q=64,
+                                         alpha=0.8,
+                                         beta=0.6)
     else:
         memory = ReplayBuffer(memory_cap=2000, batch_size_q=64)
 

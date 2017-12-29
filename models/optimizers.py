@@ -503,6 +503,64 @@ class Adam_Q_Optimizer(Optimizer):
 
 
 # ================================================================
+# Bayesian Q-Learning Optimizer
+# ================================================================
+class Bayesian_Q_Optimizer(Optimizer):
+    def __init__(self, net, mean_net, std_net, lr, alpha, beta, scale, get_data=True):
+        self.net = net
+        self.mean_net = mean_net
+        self.std_net = std_net
+        self.alpha = alpha
+        self.beta = beta
+        self.scale = scale
+        self.optimizer_mean = optim.Adam(params=self.mean_net.parameters(), lr=lr)
+        self.optimizer_std = optim.Adam(params=self.std_net.parameters(), lr=lr)
+        self.get_data = get_data
+
+    def _derive_info(self, observations, y_targ, actions):
+        y_pred = self.net(observations).gather(1, actions.long())
+        explained_var = 1 - torch.var(y_targ - y_pred) / torch.var(y_targ)
+        loss = (y_targ - y_pred).pow(2).mean()
+        info = {'explained_var': explained_var.data[0], 'loss': loss.data[0]}
+        return info
+
+    def __call__(self, path):
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        weights = turn_into_cuda(path["weights"]) if "weights" in path else None
+        y_targ = turn_into_cuda(path['y_targ'])
+
+        if self.get_data:
+            info_before = self._derive_info(observations, y_targ, actions)
+
+        mean = get_flat_params_from(self.mean_net)
+        rho = get_flat_params_from(self.std_net)
+        std = torch.log(1 + torch.exp(rho))
+        epsilon = torch.randn(mean.size()) * self.scale
+        sample_weight = epsilon * std + mean
+        set_flat_params_to(self.net, sample_weight)
+        td_err = torch.abs(self.net(observations).gather(1, actions.long()) - y_targ)
+        loss = (td_err.pow(2) * weights).sum() if weights is not None else td_err.pow(2).mean()
+
+        self.net.zero_grad()
+        loss.backward()
+        grad = get_flat_grads_from(self.net)
+        grad_mean = self.alpha * grad + self.beta * sample_weight - (mean - sample_weight) / (std.pow(2) + 1e-7)
+        grad_std = self.alpha * epsilon * grad + self.beta * epsilon * sample_weight - 1 / std + (sample_weight - mean).pow(2) / (std.pow(3) + 1e-7)
+        grad_std /= 1 + torch.exp(-rho)
+        set_flat_grads_to(self.mean_net, grad_mean)
+        set_flat_grads_to(self.std_net, grad_std)
+        self.optimizer_mean.step()
+        self.optimizer_std.step()
+
+        if self.get_data:
+            info_after = self._derive_info(observations, y_targ, actions)
+            return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
+
+        return None, {"td_err": td_err.data.cpu().numpy()}
+
+
+# ================================================================
 # DDPG Optimizer
 # ================================================================
 class DDPG_Optimizer(Optimizer):

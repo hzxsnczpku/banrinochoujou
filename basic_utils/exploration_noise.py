@@ -52,6 +52,17 @@ class OUNoise_Exploration:
         return self.state
 
 
+class NoNoise_Exploration:
+    def __init__(self):
+        self.extra_info = []
+
+    def process_action(self, a):
+        return np.argmax(a), {}
+
+    def reset(self):
+        pass
+
+
 class EpsilonGreedy_Exploration:
     """
     The epsilon greedy noise.
