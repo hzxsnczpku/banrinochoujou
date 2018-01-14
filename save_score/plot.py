@@ -1,22 +1,32 @@
 import numpy as np
 import pylab
 
-length = 200000
-MEAN_LENGTH = length//25
+length = 150
+MEAN_LENGTH = length // 10
 
 NAME = ["InvertedDoublePendulum-v1", "HalfCheetah-v1", "InvertedPendulum-v1", "Swimmer-v1", "Reacher-v1", "Walker2d-v1",
         "Humanoid-v1", "HumanoidStandup-v1", "Ant-v1", "Hopper-v1", "BipedalWalker-v2"]
 
 index = -5
 
-distri = ["PPO_adapted", "PPO_clip", "TRPO", "A2C"]
-pylab.title(NAME[index])
+# distri = ["PPO_adapted", "PPO_clip", "TRPO", "A2C"]
+# distri = ['DQN No Exploration', 'DQN Epsilon Greedy', 'Bayesian Thompson Sampling', 'Bayesian Epsilon Greedy', 'Double DQN',
+#            'Prioritized DQN']
+distri = ['DQN Epsilon Greedy', 'Bayesian Thompson Sampling']
+
+# pylab.title(NAME[index])
+pylab.title('CartPole-v1')
 pylab.xlabel("episode")
 pylab.ylabel("score")
 c = []
 
-for dis in distri:
-    a = np.load(NAME[index] + "_" + dis + '_Agent' + ".npy")
+# names = ['CartPole_DQN_Baseline.npy', 'CartPole_DQN_epsilon.npy', 'CartPole_Bayesian_TS.npy',
+#          'CartPole_Bayesian_epsilon.npy', 'CartPole_DDQN.npy', 'CartPole_PDQN.npy']
+# names = ['Acrobot-v1_Bayesian_DQN_Agent.npy', 'Acrobot-v1_DQN_Agent.npy']
+names = ['CartPole-v1_DQN_Agent.npy', 'CartPole-v1_Bayesian_DQN_Agent.npy']
+for dis in names:
+    # a = np.load(NAME[index] + "_" + dis + '_Agent' + ".npy")
+    a = np.load(dis)
     b = []
     upper = []
     lower = []
@@ -30,18 +40,18 @@ for dis in distri:
             else:
                 mean = np.mean(a[i - MEAN_LENGTH: i])
                 std = np.std(a[i - MEAN_LENGTH: i])
-            if np.abs(a[i]-mean) > 100 * std:
+            if np.abs(a[i] - mean) > 100 * std:
                 a[i] = mean
             else:
                 fin = True
         b.append(mean)
-        upper.append(mean + std)
-        lower.append(mean - std)
+        upper.append(mean + 0.5 * std)
+        lower.append(mean - 0.5 * std)
     b = b[:length]
     lower = lower[:length]
     upper = upper[:length]
     c += pylab.plot(b)
-    pylab.fill_between(range(len(b)), lower, upper, alpha=0.3)
+    # pylab.fill_between(range(len(b)), lower, upper, alpha=0.3)
 
-pylab.legend(c, distri, loc=2)
+pylab.legend(c, distri, loc=2, fontsize='x-small')
 pylab.show()

@@ -214,10 +214,11 @@ class Value_Based_Agent(BasicAgent):
         return [("q", vf_stats)], {'idxes': path["idxes"], 'td_err': info["td_err"]}
 
     def get_params(self):
-        return self.baseline.net.state_dict()
+        return [net.state_dict() for net in self.baseline.nets]
 
     def set_params(self, state_dict):
-        self.baseline.net.load_state_dict(state_dict)
+        for i in range(len(self.baseline.nets)):
+            self.baseline.nets[i].load_state_dict(state_dict[i])
 
     def save_model(self, name):
         self.baseline.save_model(name)

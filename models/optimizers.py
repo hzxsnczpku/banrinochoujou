@@ -10,6 +10,7 @@ class Updater:
     """
     This is the abstract class of the policy updater.
     """
+
     def __call__(self, path):
         """
         Update the network weights.
@@ -514,12 +515,12 @@ class Bayesian_Q_Optimizer(Optimizer):
         self.beta = beta
         self.scale = scale
         self.optimizer_mean = optim.Adam(params=self.mean_net.parameters(), lr=lr)
-        self.optimizer_std = optim.Adam(params=self.std_net.parameters(), lr=lr)
+        self.optimizer_std = optim.Adam(params=self.std_net.parameters(), lr=1e-3)
         self.get_data = get_data
 
     def _derive_info(self, observations, y_targ, actions):
         y_pred = self.net(observations).gather(1, actions.long())
-        explained_var = 1 - torch.var(y_targ - y_pred) / torch.var(y_targ)
+        explained_var = 1 - torch.var(y_targ - y_pred) / (torch.var(y_targ) + 1e-6)
         loss = (y_targ - y_pred).pow(2).mean()
         info = {'explained_var': explained_var.data[0], 'loss': loss.data[0]}
         return info
@@ -546,8 +547,10 @@ class Bayesian_Q_Optimizer(Optimizer):
         loss.backward()
         grad = get_flat_grads_from(self.net)
         grad_mean = self.alpha * grad + self.beta * sample_weight - (mean - sample_weight) / (std.pow(2) + 1e-7)
-        grad_std = self.alpha * epsilon * grad + self.beta * epsilon * sample_weight - 1 / std + (sample_weight - mean).pow(2) / (std.pow(3) + 1e-7)
+        grad_std = self.alpha * epsilon * grad + self.beta * epsilon * sample_weight - 1 / (2 * std + 1e-7) + (
+                sample_weight - mean).pow(2) / (std.pow(3) + 1e-7)
         grad_std /= 1 + torch.exp(-rho)
+        # print(sample_weight.abs().sum(), grad_mean.abs().sum(), grad_std.abs().sum())
         set_flat_grads_to(self.mean_net, grad_mean)
         set_flat_grads_to(self.std_net, grad_std)
         self.optimizer_mean.step()
@@ -601,6 +604,7 @@ class Target_updater:
     """
     A class for updating the target network.
     """
+
     def __init__(self, net, target_net, tau=0.01, update_target_every=None):
         self.net = net
         self.target_net = target_net

@@ -6,15 +6,14 @@ from basic_utils.options import *
 from basic_utils.exploration_noise import *
 
 
-def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=False, prioritized=False):
+def train_CartPole_DQN(load_model=False, render=False, save_every=None):
     torch.manual_seed(8833)
-    env = Vec_env_wrapper(name='CartPole-v1', consec_frames=1, running_stat=False, seed=23333)
+    env = Vec_env_wrapper(name='100Chain', consec_frames=1, running_stat=False, seed=23333)
     action_space = env.action_space
     observation_space = env.observation_space
 
     net = MLPs_q(observation_space, action_space, net_topology_q_vec)
     target_net = MLPs_q(observation_space, action_space, net_topology_q_vec)
-    # noise = NoNoise_Exploration()
     noise = EpsilonGreedy_Exploration(action_n=action_space.n,
                                       explore_len=10000,
                                       init_epsilon=0.05,
@@ -24,20 +23,14 @@ def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=F
         net.cuda()
         target_net.cuda()
 
-    if double:
-        agent = Double_DQN_Agent(net=net, target_net=target_net, gamma=0.95)
-    else:
-        agent = DQN_Agent(net=net,
-                          target_net=target_net,
-                          gamma=0.95,
-                          lr=1e-3,
-                          update_target_every=500,
-                          get_info=True)
+    agent = DQN_Agent(net=net,
+                      target_net=target_net,
+                      gamma=0.95,
+                      lr=1e-3,
+                      update_target_every=1000,
+                      get_info=True)
 
-    if prioritized:
-        memory = PrioritizedReplayBuffer(memory_cap=10000, batch_size_q=64)
-    else:
-        memory = ReplayBuffer(memory_cap=10000, batch_size_q=64)
+    memory = ReplayBuffer(memory_cap=10000, batch_size_q=64)
 
     if load_model:
         agent.load_model("./save_model/" + env.name + "_" + agent.name)
@@ -47,7 +40,7 @@ def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=F
                     memory=memory,
                     n_worker=1,
                     step_num=1,
-                    rand_explore_len=1000,
+                    rand_explore_len=0,
                     save_every=save_every,
                     render=render,
                     print_every=10,
@@ -56,4 +49,4 @@ def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=F
 
 
 if __name__ == '__main__':
-    train_CartPole_DQN(save_every=2)
+    train_CartPole_DQN(save_every=5)

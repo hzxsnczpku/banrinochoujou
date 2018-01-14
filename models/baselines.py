@@ -25,6 +25,7 @@ class ValueFunction:
 class QValueFunction:
     def __init__(self, net, target_net, optimizer, tau=0.01, update_target_every=None):
         self.net = net
+        self.nets = [self.net]
         self.target_net = target_net
         self.optimizer = optimizer
         self.target_updater = Target_updater(self.net, self.target_net, tau, update_target_every)
@@ -88,6 +89,7 @@ class QValueFunction_Bayesian:
         self.net = net
         self.mean_net = mean_net
         self.std_net = std_net
+        self.nets = [self.net, self.mean_net, self.std_net]
         self.target_net = target_net
         self.scale = scale
         self.target_mean_net = target_mean_net

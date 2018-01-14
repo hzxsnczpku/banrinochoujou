@@ -201,7 +201,7 @@ class Categorical(Probtype):
         return prob.argmax(axis=1)
 
     def output_layers(self, oshp):
-        return [nn.Linear(oshp, self.n), nn.Softmax(dim=-1)]
+        return [nn.Linear(oshp, self.n), nn.Softmax()]
 
 
 class DiagGauss(Probtype):

@@ -65,6 +65,19 @@ def compute_advantage(vf, paths, gamma, lam):
         path["advantage"] = (path["advantage"] - mean) / std
 
 
+def compute_return(paths, gamma):
+    """
+    Compute the return of the path.
+
+    Args:
+        paths: the data paths for calculation. The result is also saved into it.
+        gamma: discount factor
+    """
+    for path in paths:
+        rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
+        path['return'] = discount(rewards, gamma)
+
+
 def compute_target(qf, path, gamma, double=False):
     """
     Compute the one step bootstrap target for DQN updating.

@@ -139,5 +139,5 @@ class Mem_Trainer:
                 count = self.callback.print_table()
 
             if self.save_every is not None and count % self.save_every == 0:
-                self.agent.save_model('./save_model/' + self.env.name + '_' + self.agent.name)
-                np.save('./save_score/' + self.env.name + '_' + self.agent.name, self.callback.scores)
+                # self.agent.save_model('./save_model/' + self.env.name + '_' + self.agent.name)
+                np.save(self.env.name + '_' + self.agent.name, self.callback.scores)

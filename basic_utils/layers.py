@@ -71,6 +71,8 @@ def get_layer(des, inshp):
         return nn.ReLU(), inshp
     if des['kind'] == 'Tanh':
         return nn.Tanh(), inshp
+    if des['kind'] == 'Dropout':
+        return nn.Dropout(p=des['p']), inshp
 
 
 def mujoco_layer_designer(ob_space, ac_space):

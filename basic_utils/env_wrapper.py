@@ -3,7 +3,7 @@ import numpy as np
 from skimage.color import rgb2gray
 from skimage.transform import resize
 from collections import deque
-from gym.spaces import Box
+from gym.spaces import Box, Discrete
 
 
 class Scaler(object):
@@ -59,14 +59,20 @@ class Vec_env_wrapper:
     """
     A wrapper for the environments whose observation is vector.
     """
-    def __init__(self, name, consec_frames, running_stat):
+    def __init__(self, name, consec_frames, running_stat, seed=None):
         """
         Args:
             name: name of the game
             consec_frames: number of observations to concatenate together
             running_stat: whether to use normalization or not
         """
-        self.env = gym.make(name)
+        if name[-5:] == 'Chain':
+            n = int(name[:-5])
+            self.env = nchain(n=n, m=-1)
+        else:
+            self.env = gym.make(name)
+        if seed is not None:
+            self.env.seed(seed)
         self.name = name
         self.consec_frames = consec_frames
         self.states = deque(maxlen=self.consec_frames)
@@ -264,3 +270,46 @@ class Fig_env_wrapper:
         Close the environment.
         """
         self.env.close()
+
+
+class nchain:
+    def __init__(self, n=10, m=-1):
+        self.n = n
+        self.m = m
+        self.s = 0
+        self.dir = np.random.randint(0, 2) * 2 - 1
+        self.tot_step = 0
+        self.action_space = Discrete(2)
+        self.observation_space = Box(shape=[2, ], low=0, high=n)
+
+    def reset(self):
+        self.s = 0
+        self.dir = np.random.randint(0, 2) * 2 - 1
+        self.tot_step = 0
+        return [self.s, self.dir]
+
+    def step(self, action):
+        done = True
+        if self.dir == -1:
+            action = 1 - action
+        self.tot_step += 1
+        if action == 0:
+            self.s -= 1
+        else:
+            self.s += 1
+        if self.s == self.m:
+            r = 0.1
+        elif self.s == self.n:
+            r = self.n
+        else:
+            r = 0
+            done = False
+        if self.tot_step >= 3 * self.n:
+            done = True
+        return [self.s, self.dir], r, done, {}
+
+    def seed(self, seed):
+        pass
+
+    def close(self):
+        pass

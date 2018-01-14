@@ -8,7 +8,8 @@ from basic_utils.exploration_noise import *
 
 def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=False, prioritized=False):
     torch.manual_seed(8833)
-    env = Vec_env_wrapper(name='CartPole-v1', consec_frames=1, running_stat=False, seed=23333)
+    np.random.seed(8833)
+    env = Vec_env_wrapper(name='100Chain', consec_frames=1, running_stat=False, seed=23333)
     action_space = env.action_space
     observation_space = env.observation_space
 
@@ -19,10 +20,6 @@ def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=F
     target_mean_net = MLPs_q(observation_space, action_space, net_topology_q_vec)
     target_std_net = MLPs_q(observation_space, action_space, net_topology_q_vec)
     noise = NoNoise_Exploration()
-    #noise = EpsilonGreedy_Exploration(action_n=action_space.n,
-    #                                  explore_len=10000,
-    #                                  init_epsilon=1.0,
-    #                                  final_epsilon=0.01)
 
     if use_cuda:
         net.cuda()
@@ -40,9 +37,9 @@ def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=F
                                target_std_net,
                                alpha=1,
                                beta=1e-4,
-                               gamma=0.95,
-                               lr=5e-3,
-                               scale=5e-4,
+                               gamma=0.99,
+                               lr=1e-3,
+                               scale=1e-4,
                                update_target_every=500,
                                get_info=True)
 
@@ -62,7 +59,7 @@ def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=F
                     memory=memory,
                     n_worker=1,
                     step_num=1,
-                    rand_explore_len=1000,
+                    rand_explore_len=100,
                     save_every=save_every,
                     render=render,
                     print_every=10,

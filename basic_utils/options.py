@@ -26,6 +26,19 @@ net_topology_q_vec = [
     {'kind': 'ReLU'},
     {'kind': 'dense', 'units': 24},
     {'kind': 'ReLU'},
+    # {'kind': 'dense', 'units': 64},
+    # {'kind': 'ReLU'},
+]
+
+net_topology_q_dropout_vec = [
+    {'kind': 'dense', 'units': 24},
+    {'kind': 'ReLU'},
+    {'kind': 'Dropout', 'p': 0.1},
+    {'kind': 'dense', 'units': 24},
+    {'kind': 'ReLU'},
+    {'kind': 'Dropout', 'p': 0.1}
+    # {'kind': 'dense', 'units': 64},
+    # {'kind': 'ReLU'},
 ]
 
 net_topology_pol_det_vec = [
