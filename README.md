@@ -7,13 +7,13 @@ Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 I am tuning the DDPG algorithm on the swimmer environment currently.
 
 ## News: My implementation of the Bayesian methods in Q-Learning
-I recently have done some simple experiments on the Bayesian methods in Q-Learning. My main ideas are borrowed form the following three papers,
+I recently have done some simple experiments on the Bayesian methods in Q-Learning. My main ideas are borrowed from the following three papers,
 
 * [Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning](https://arxiv.org/abs/1506.02142)
 * [Weight uncertainty in neural networks](https://arxiv.org/abs/1505.05424)
 * [An empirical evaluation of thompson sampling](http://papers.nips.cc/paper/4321-an-empirical-evaluation-of-thompson-sampling.pdf)
 
-I try the variance inference approach and the dropout approach on the CartPole, Acrobot and nChain environment. The results of different algorithms are shown in the following figures and tables,
+I have tried the variance inference approach and the dropout approach on the CartPole, Acrobot and nChain environment. The results of different algorithms are shown in the following figures and tables,
 
 ### nChain
 | N | 20 | 30 | 50 | 80 | 100 |
