@@ -3,6 +3,9 @@
 
 Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 
+## News: Currently doing some mujoco experiments with the DDPG algorithm.
+I am tuning the DDPG algorithm on the swimmer environment currently.
+
 ## News: My implementation of the Bayesian methods in Q-Learning
 I recently have done some simple experiments on the Bayesian methods in Q-Learning. My main ideas are borrowed form the following three papers,
 
@@ -70,6 +73,8 @@ To get a more detailed overview of the parameters, run the following code:
 ```
 python main.py -h
 ```
+
+* I have change the structure of the code, so the above instructions no longer works, an alternative one will soon be given.
 
 ## Experiment Results
 Below are some experimental results achieved by my baselines:
