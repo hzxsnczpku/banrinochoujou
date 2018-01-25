@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from tabulate import tabulate
 import scipy.signal
+from tensorboardX import SummaryWriter
 import time
 
 
@@ -65,19 +66,6 @@ def compute_advantage(vf, paths, gamma, lam):
         path["advantage"] = (path["advantage"] - mean) / std
 
 
-def compute_return(paths, gamma):
-    """
-    Compute the return of the path.
-
-    Args:
-        paths: the data paths for calculation. The result is also saved into it.
-        gamma: discount factor
-    """
-    for path in paths:
-        rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
-        path['return'] = discount(rewards, gamma)
-
-
 def compute_target(qf, path, gamma, double=False):
     """
     Compute the one step bootstrap target for DQN updating.
@@ -124,11 +112,14 @@ class Callback:
     """
     def __init__(self):
         self.counter = 0
+        self.epi_counter = 0
+        self.step_counter = 0
         self.u_stats = dict()
         self.path_info = defaultdict(list)
         self.extra_info = dict()
         self.scores = []
         self.tstart = time.time()
+        self.writer = SummaryWriter()
 
     def print_table(self):
         """
@@ -177,7 +168,15 @@ class Callback:
                 if d[0] not in self.u_stats:
                     self.u_stats[d[0]] = defaultdict(list)
                 for k in d[1]:
+                    if k[-7:] == '_before':
+                        prefix = '_before'
+                    elif k[-6:] == '_after':
+                        prefix = '_after'
+                    else:
+                        prefix = ''
+                    self.writer.add_scalar('update_data' + prefix + '/' + d[0] + '_' + k, d[1][k], self.step_counter)
                     self.u_stats[d[0]][k].append(d[1][k])
+            self.step_counter += 1
 
     def add_path_info(self, path_info, extra_info):
         """
@@ -187,8 +186,17 @@ class Callback:
             path_info: the information about rewards
             extra_info: optional additional information
         """
-        self.path_info['episoderewards'] += [np.sum(p) for p in path_info]
-        self.path_info['pathlengths'] += [len(p) for p in path_info]
+        epi_rewards = []
+        path_lens = []
+        for p in path_info:
+            reward = np.sum(p)
+            epi_rewards.append(reward)
+            path_lens.append(len(p))
+            self.writer.add_scalar('episode_data/reward', reward, self.epi_counter)
+            self.writer.add_scalar('episode_data/path_length', len(p), self.epi_counter)
+            self.epi_counter += 1
+        self.path_info['episoderewards'] += epi_rewards
+        self.path_info['pathlengths'] += path_lens
         for d in extra_info:
             self.extra_info[d] = extra_info[d]
 

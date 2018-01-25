@@ -10,7 +10,6 @@ class Updater:
     """
     This is the abstract class of the policy updater.
     """
-
     def __call__(self, path):
         """
         Update the network weights.
@@ -390,11 +389,18 @@ class DDPG_Updater(Updater):
     def __init__(self, net, q_net, lr, get_data=True):
         self.net = net
         self.q_net = q_net
-        self.get_info = get_data
+        self.get_data = get_data
         self.optimizer = optim.Adam(self.net.parameters(), lr=lr)
+
+    def _derive_info(self, observations):
+        return -self.q_net(observations, self.net(observations)).mean()
 
     def __call__(self, path):
         observations = turn_into_cuda(path["observation"])
+
+        if self.get_data:
+            info_before = self._derive_info(observations)
+
 
         min_q_value = -self.q_net(observations, self.net(observations)).mean()
 
@@ -404,7 +410,9 @@ class DDPG_Updater(Updater):
         self.optimizer.step()
         self.q_net.zero_grad()
 
-        return {}
+        if self.get_data:
+            info_after = self._derive_info(observations)
+            return merge_before_after(info_before, info_after)
 
 
 # ================================================================
@@ -604,7 +612,6 @@ class Target_updater:
     """
     A class for updating the target network.
     """
-
     def __init__(self, net, target_net, tau=0.01, update_target_every=None):
         self.net = net
         self.target_net = target_net
