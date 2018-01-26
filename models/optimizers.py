@@ -393,14 +393,13 @@ class DDPG_Updater(Updater):
         self.optimizer = optim.Adam(self.net.parameters(), lr=lr)
 
     def _derive_info(self, observations):
-        return -self.q_net(observations, self.net(observations)).mean()
+        return {'loss': -self.q_net(observations, self.net(observations)).mean().data[0]}
 
     def __call__(self, path):
         observations = turn_into_cuda(path["observation"])
 
         if self.get_data:
             info_before = self._derive_info(observations)
-
 
         min_q_value = -self.q_net(observations, self.net(observations)).mean()
 
@@ -413,6 +412,8 @@ class DDPG_Updater(Updater):
         if self.get_data:
             info_after = self._derive_info(observations)
             return merge_before_after(info_before, info_after)
+        else:
+            return {}
 
 
 # ================================================================
@@ -469,7 +470,9 @@ class Adam_Optimizer(Optimizer):
 
         if self.get_data:
             info_after = self._derive_info(observations, y_targ)
-            return merge_before_after(info_before, info_after)
+            return merge_before_after(info_before, info_after), {}
+        else:
+            return {}, {}
 
 
 # ================================================================
@@ -507,8 +510,8 @@ class Adam_Q_Optimizer(Optimizer):
         if self.get_data:
             info_after = self._derive_info(observations, y_targ, actions)
             return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
-
-        return None, {"td_err": td_err.data.cpu().numpy()}
+        else:
+            return {}, {"td_err": td_err.data.cpu().numpy()}
 
 
 # ================================================================
@@ -568,7 +571,7 @@ class Bayesian_Q_Optimizer(Optimizer):
             info_after = self._derive_info(observations, y_targ, actions)
             return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
 
-        return None, {"td_err": td_err.data.cpu().numpy()}
+        return {}, {"td_err": td_err.data.cpu().numpy()}
 
 
 # ================================================================
@@ -608,7 +611,7 @@ class DDPG_Optimizer(Optimizer):
             return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
 
 
-class Target_updater:
+class Target_Updater:
     """
     A class for updating the target network.
     """
@@ -622,8 +625,9 @@ class Target_updater:
     def update(self):
         self.counter += 1
         if self.update_target_every is not None:
-            params = get_flat_params_from(self.net)
-            set_flat_params_to(self.target_net, params)
+            if self.counter % self.update_target_every == 0:
+                params = get_flat_params_from(self.net)
+                set_flat_params_to(self.target_net, params)
         else:
             params = get_flat_params_from(self.net)
             params_target = get_flat_params_from(self.target_net)

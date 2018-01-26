@@ -1,6 +1,6 @@
 from basic_utils.layers import ConcatFixedStd, Add_One, Softplus
 from basic_utils.utils import *
-from models.optimizers import Target_updater
+from models.optimizers import Target_Updater
 
 
 class StochPolicy:
@@ -8,7 +8,7 @@ class StochPolicy:
         self.net = net
         self.target_net = target_net
         if target_net is not None:
-            self.target_updater = Target_updater(self.net, self.target_net, tau, update_target_every)
+            self.target_updater = Target_Updater(self.net, self.target_net, tau, update_target_every)
         self.probtype = probtype
         self.updater = updater
 

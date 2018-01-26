@@ -11,6 +11,7 @@ class Scaler(object):
     """
     A class recording the mean and variance of the observation.
     """
+
     def __init__(self, obs_dim):
         """
         Args:
@@ -53,14 +54,15 @@ class Scaler(object):
         Return:
             the scale and mean for the data.
         """
-        return 1/(np.sqrt(self.vars) + 0.1)/3, self.means
+        return 1 / (np.sqrt(self.vars) + 0.1) / 3, self.means
 
 
 class Vec_env_wrapper:
     """
     A wrapper for the environments whose observation is vector.
     """
-    def __init__(self, name, consec_frames, running_stat):
+
+    def __init__(self, name, consec_frames, running_stat, seed=None):
         """
         Args:
             name: name of the game
@@ -68,12 +70,15 @@ class Vec_env_wrapper:
             running_stat: whether to use normalization or not
         """
         self.env = gym.make(name)
+        if seed is not None:
+            self.env.seed(seed)
         self.name = name
         self.consec_frames = consec_frames
         self.states = deque(maxlen=self.consec_frames)
-        self.observation_space = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames + 1,), low=0, high=1)
-        self.observation_space_sca = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames,), low=0,
+        self.observation_space = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames + 1,), low=0,
                                      high=1)
+        self.observation_space_sca = Box(shape=(self.env.observation_space.shape[0] * self.consec_frames,), low=0,
+                                         high=1)
         self.action_space = self.env.action_space
 
         self.timestep = 0
@@ -161,6 +166,7 @@ class Fig_env_wrapper:
     """
     A wrapper for the environments whose observation is figure.
     """
+
     def __init__(self, name, consec_frames, image_size, running_stat):
         """
         Args:

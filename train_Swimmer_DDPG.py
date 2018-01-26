@@ -45,17 +45,17 @@ def train_Swimmer(load_model=False, render=False, save_every=None, prioritized=F
     else:
         memory = ReplayBuffer(memory_cap=1000000, batch_size_q=100)
 
-    t = Mem_Trainer(agent=agent,
-                    env=env,
-                    memory=memory,
-                    n_worker=10,
-                    step_num=1,
-                    noise=noise,
-                    rand_explore_len=1000,
-                    save_every=save_every,
-                    render=render,
-                    action_repeat=1,
-                    print_every=10)
+    t = Memory_Trainer(agent=agent,
+                       env=env,
+                       memory=memory,
+                       n_worker=10,
+                       step_num=1,
+                       noise=noise,
+                       rand_explore_len=1000,
+                       save_every=save_every,
+                       render=render,
+                       action_repeat=1,
+                       print_every=10)
     t.train()
 
 

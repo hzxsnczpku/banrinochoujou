@@ -60,14 +60,14 @@ if __name__ == "__main__":
 
     # agent.load_model("./save_model/" + env.name + "_" + agent.name)
 
-    t = Mem_Trainer(agent=agent,
-                    env=env,
-                    memory=memory,
-                    n_worker=1,
-                    step_num=1,
-                    explore_len=10000,
-                    ini_epsilon=1.0,
-                    final_epsilon=0.01,
-                    rand_explore_len=1000,
-                    print_every=50)
+    t = Memory_Trainer(agent=agent,
+                       env=env,
+                       memory=memory,
+                       n_worker=1,
+                       step_num=1,
+                       explore_len=10000,
+                       ini_epsilon=1.0,
+                       final_epsilon=0.01,
+                       rand_explore_len=1000,
+                       print_every=50)
     t.train()

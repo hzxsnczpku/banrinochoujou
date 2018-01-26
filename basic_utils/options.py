@@ -22,10 +22,10 @@ net_topology_v_vec = [
 ]
 
 net_topology_q_vec = [
-    {'kind': 'dense', 'units': 24},
-    {'kind': 'ReLU'},
-    {'kind': 'dense', 'units': 24},
-    {'kind': 'ReLU'},
+    {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
+    {'kind': 'dense', 'units': 64},
+    {'kind': 'Tanh'},
     # {'kind': 'dense', 'units': 64},
     # {'kind': 'ReLU'},
 ]
@@ -92,24 +92,3 @@ net_topology_q_fig = [
     {'kind': 'dense', 'units': 512},
     {'kind': 'Tanh'},
 ]
-
-
-MLP_OPTIONS = [
-    ("net_topology_pol_vec", list, net_topology_pol_vec, "Sizes of hidden layers of MLP"),
-    ("net_topology_v_vec", list, net_topology_v_vec, "Sizes of hidden layers of MLP"),
-    ("net_topology_q_vec", list, net_topology_q_vec, "Sizes of hidden layers of MLP"),
-    ("net_topology_pol_fig", list, net_topology_pol_fig, "Sizes of hidden layers of MLP"),
-    ("net_topology_v_fig", list, net_topology_v_fig, "Sizes of hidden layers of MLP"),
-    ("net_topology_q_fig", list, net_topology_q_fig, "Sizes of hidden layers of MLP"),
-    ("net_topology_det_vec", list, net_topology_q_fig, "Sizes of hidden layers of MLP"),
-]
-
-MOJOCO_ENVS = ["InvertedPendulum-v1", "InvertedDoublePendulum-v1", "Reacher-v1", "HalfCheetah-v1", "Swimmer-v1",
-               "Hopper-v1", "Walker2d-v1", "Ant-v1", "Humanoid-v1", "HumanoidStandup-v1"]
-
-CLASSICAL_CONTROL = ["CartPole-v0", "CartPole-v1", "Acrobot-v1", "MountainCar-v0", "MountainCarContinuous-v0",
-                     "Pendulum-v0"]
-
-POLICY_BASED_AGENT = ["TRPO_Agent", "A2C_Agent", "PPO_adapted_Agent", "PPO_clip_Agent"]
-
-VALUE_BASED_AGENT = ["DQN_Agent", "Double_DQN_Agent", "Prioritized_DQN_Agent", "Prioritized_Double_DQN_Agent"]

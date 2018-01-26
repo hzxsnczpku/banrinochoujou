@@ -57,16 +57,16 @@ def train_CartPole_DQN(load_model=False, render=False, save_every=None, double=F
     if load_model:
         agent.load_model("./save_model/" + env.name + "_" + agent.name)
 
-    t = Mem_Trainer(agent=agent,
-                    env=env,
-                    memory=memory,
-                    n_worker=1,
-                    step_num=1,
-                    rand_explore_len=1000,
-                    save_every=save_every,
-                    render=render,
-                    print_every=10,
-                    noise=noise)
+    t = Memory_Trainer(agent=agent,
+                       env=env,
+                       memory=memory,
+                       n_worker=1,
+                       step_num=1,
+                       rand_explore_len=1000,
+                       save_every=save_every,
+                       render=render,
+                       print_every=10,
+                       noise=noise)
     t.train()
 
 

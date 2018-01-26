@@ -183,7 +183,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             weights.append(weight)
         weights = np.array(weights)/np.sum(weights)
         encoded_sample = self._encode_sample(idxes)
-        encoded_sample["weights"] = np_to_var(weights).view(-1, 1)
+        encoded_sample["weights"] = weights
         encoded_sample["idxes"] = idxes
         return encoded_sample
 

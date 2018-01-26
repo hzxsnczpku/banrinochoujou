@@ -1,16 +1,15 @@
 from models.agents import *
-from basic_utils.data_generator import Path_Data_generator, Memory_Data_generator
+from basic_utils.data_generator import Parallel_Path_Data_Generator
+from basic_utils.env_wrapper import Scaler
 
 
 class Path_Trainer:
     def __init__(self,
                  agent,
                  env,
-                 n_worker=10,
-                 path_num=10,
+                 data_generator,
+                 data_processor,
                  save_every=None,
-                 render=False,
-                 action_repeat=1,
                  print_every=10):
         self.callback = Callback()
         self.save_every = save_every
@@ -18,21 +17,14 @@ class Path_Trainer:
 
         self.agent = agent
         self.env = env
-        self.data_generator = Path_Data_generator(agent=self.agent,
-                                                  env=self.env,
-                                                  n_worker=n_worker,
-                                                  path_num=path_num,
-                                                  action_repeat=action_repeat,
-                                                  render=render)
+        self.data_generator = data_generator
+        self.data_processor = data_processor
 
     def train(self):
         count = 1
-        while True:
-            self.data_generator.set_param(self.agent.get_params())
-
-            paths, path_info, extra_info = self.data_generator.derive_data()
-
-            u_stats, info = self.agent.update(paths)
+        for paths, path_info, extra_info in self.data_generator():
+            processed_path = self.data_processor(paths)
+            u_stats, info = self.agent.update(processed_path)
             self.callback.add_update_info(u_stats)
             self.callback.add_path_info(path_info, extra_info)
 
@@ -41,7 +33,6 @@ class Path_Trainer:
 
             if self.save_every is not None and count % self.save_every == 0:
                 self.agent.save_model('./save_model/' + self.env.name + '_' + self.agent.name)
-                np.save('./save_score/' + self.env.name + '_' + self.agent.name, self.callback.scores)
 
 
 class ES_Trainer:
@@ -60,12 +51,12 @@ class ES_Trainer:
 
         self.agent = agent
         self.env = env
-        self.data_generator = Path_Data_generator(agent=self.agent,
-                                                  env=self.env,
-                                                  n_worker=n_worker,
-                                                  path_num=path_num,
-                                                  action_repeat=action_repeat,
-                                                  render=render)
+        self.data_generator = Parallel_Path_Data_Generator(agent=self.agent,
+                                                           env=self.env,
+                                                           n_worker=n_worker,
+                                                           path_num=path_num,
+                                                           action_repeat=action_repeat,
+                                                           render=render)
 
     def train(self):
         count = 1
@@ -89,21 +80,16 @@ class ES_Trainer:
 
             if self.save_every is not None and count % self.save_every == 0:
                 self.agent.save_model('./save_model/' + self.env.name + '_' + self.agent.name)
-                np.save('./save_score/' + self.env.name + '_' + self.agent.name, self.callback.scores)
 
 
-class Mem_Trainer:
+class Memory_Trainer:
     def __init__(self,
                  agent,
                  memory,
                  env,
-                 noise,
-                 n_worker=1,
-                 step_num=1,
-                 rand_explore_len=1000,
-                 action_repeat=1,
+                 data_generator,
+                 data_processor,
                  save_every=None,
-                 render=False,
                  print_every=100):
         self.callback = Callback()
         self.save_every = save_every
@@ -112,32 +98,22 @@ class Mem_Trainer:
         self.agent = agent
         self.env = env
         self.memory = memory
-        self.data_generator = Memory_Data_generator(agent=self.agent,
-                                                    env=self.env,
-                                                    memory=self.memory,
-                                                    n_worker=n_worker,
-                                                    rand_explore_len=rand_explore_len,
-                                                    noise=noise,
-                                                    step_num=step_num,
-                                                    action_repeat=action_repeat,
-                                                    render=render)
+        self.data_generator = data_generator
+        self.data_processor = data_processor
 
     def train(self):
         count = 1
-        while True:
-            self.data_generator.set_param(self.agent.get_params())
+        for paths, path_info, extra_info in self.data_generator():
+            if paths is not None:
+                processed_path = self.data_processor([paths])
+                u_stats, info = self.agent.update(processed_path)
 
-            paths, path_info, extra_info = self.data_generator.derive_data()
-
-            u_stats, info = self.agent.update(paths)
-            if info is not None:
-                self.memory.update_priorities(info["idxes"], info["td_err"])
-            self.callback.add_update_info(u_stats)
-            self.callback.add_path_info(path_info, extra_info)
+                self.memory.update_priorities(paths["idxes"], info["td_err"])
+                self.callback.add_update_info(u_stats)
+                self.callback.add_path_info(path_info, extra_info)
 
             if self.callback.num_batches() >= self.print_every:
                 count = self.callback.print_table()
 
             if self.save_every is not None and count % self.save_every == 0:
-                # self.agent.save_model('./save_model/' + self.env.name + '_' + self.agent.name)
                 np.save(self.env.name + '_' + self.agent.name, self.callback.scores)

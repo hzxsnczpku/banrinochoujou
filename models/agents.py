@@ -1,11 +1,11 @@
 from basic_utils.options import *
-from basic_utils.utils import compute_advantage
 import numpy as np
 from models.net_builder import MLPs_pol, MLPs_v
 from models.optimizers import *
 from models.policies import StochPolicy
 from models.baselines import *
 from basic_utils.replay_memory import *
+from models.data_processor import *
 
 
 # ================================================================
@@ -75,25 +75,20 @@ class BasicAgent:
 # Policy Based Agent
 # ================================================================
 class Policy_Based_Agent(BasicAgent):
-    def __init__(self, policy, baseline, gamma, lam):
+    def __init__(self, policy, baseline):
         self.policy = policy
         self.baseline = baseline
-        self.gamma = gamma
-        self.lam = lam
 
-    def act(self, ob_no):
-        return self.policy.act(ob_no)
+    def act(self, observation):
+        return self.policy.act(observation)
 
-    def process_act(self, a):
-        return self.policy.probtype.process_act(a)
+    def process_act(self, action):
+        return self.policy.probtype.process_act(action)
 
-    def update(self, paths):
-        compute_advantage(self.baseline, paths, gamma=self.gamma, lam=self.lam)
-        keys = ["observation", "action", "advantage", "return"]
-        processed_path = pre_process_path(paths, keys)
+    def update(self, processed_path):
+        vf_name, vf_stats, info = self.baseline.fit(processed_path)
         pol_stats = self.policy.update(processed_path)
-        vf_stats = self.baseline.fit(processed_path)
-        return [("v", vf_stats), ("pol", pol_stats)], {}
+        return [(vf_name, vf_stats), ("pol", pol_stats)], info
 
     def save_model(self, name):
         self.policy.save_model(name)
@@ -127,8 +122,7 @@ class Evolution_Based_Agent(BasicAgent):
         return self.policy.probtype.process_act(a)
 
     def update(self, paths):
-        pol_stats = self.policy.update(paths, self.noise_seed)
-        return [("pol", pol_stats)], {}
+        return [("pol", self.policy.update(paths, self.noise_seed))], {}
 
     def save_model(self, name):
         self.policy.save_model(name)
@@ -140,8 +134,7 @@ class Evolution_Based_Agent(BasicAgent):
         self.noise_seed = np.random.randint(0, 2 ** 32 - 1, size=self.n_kid, dtype=np.uint32).repeat(2)
         params = get_flat_params_from(self.policy.net)
         for index in range(2 * self.n_kid):
-            seed = self.noise_seed[index]
-            np.random.seed(seed)
+            np.random.seed(self.noise_seed[index])
             change = turn_into_cuda(
                 torch.from_numpy(sign(index) * self.sigma * np.random.randn(params.numel()))).float()
             new_params = params + change
@@ -149,45 +142,6 @@ class Evolution_Based_Agent(BasicAgent):
 
     def set_params(self, flat_params):
         set_flat_params_to(self.policy.net, flat_params)
-
-
-# ================================================================
-# Deterministic Policy Based Agent
-# ================================================================
-class Deterministic_Policy_Based_Agent(BasicAgent):
-    def __init__(self, policy, baseline, gamma):
-        self.policy = policy
-        self.baseline = baseline
-        self.gamma = gamma
-
-    def act(self, ob_no):
-        return self.policy.act(ob_no)
-
-    def update(self, paths):
-        if paths is None:
-            return None, None
-        compute_target_determinstic(self.baseline, self.policy, paths, gamma=self.gamma)
-        keys = ["observation", "action", "y_targ"]
-        processed_path = pre_process_path([paths], keys)
-        vf_stats, info = self.baseline.fit(processed_path)
-        pol_stats = self.policy.update(processed_path)
-        a = [("q", vf_stats), ("pol", pol_stats)]
-        return a, {'idxes': paths["idxes"], 'td_err': info["td_err"]}
-
-    def save_model(self, name):
-        self.policy.save_model(name)
-        self.baseline.save_model(name)
-
-    def load_model(self, name):
-        self.policy.load_model(name)
-        self.baseline.load_model(name)
-
-    def get_params(self):
-        return self.policy.net.state_dict(), self.baseline.net.state_dict()
-
-    def set_params(self, state_dicts):
-        self.policy.net.load_state_dict(state_dicts[0])
-        self.baseline.net.load_state_dict(state_dicts[1])
 
 
 # ================================================================
@@ -202,16 +156,9 @@ class Value_Based_Agent(BasicAgent):
     def act(self, ob_no):
         return self.baseline.act(ob_no)
 
-    def update(self, path=None):
-        if path is None:
-            return None, None
-        compute_target(self.baseline, path, gamma=self.gamma, double=self.double)
-        keys = ["observation", "action", "y_targ"]
-        processed_path = pre_process_path([path], keys)
-        if 'weights' in path:
-            processed_path['weights'] = path['weights']
-        vf_stats, info = self.baseline.fit(processed_path)
-        return [("q", vf_stats)], {'idxes': path["idxes"], 'td_err': info["td_err"]}
+    def update(self, processed_path):
+        vf_name, vf_stats, info = self.baseline.fit(processed_path)
+        return [(vf_name, vf_stats)], {'td_err': info["td_err"]}
 
     def get_params(self):
         return [net.state_dict() for net in self.baseline.nets]
@@ -231,14 +178,14 @@ class Value_Based_Agent(BasicAgent):
 # Trust Region Policy Optimization
 # ================================================================
 class TRPO_Agent(Policy_Based_Agent):
+    name = 'TRPO_Agent'
+
     def __init__(self,
                  pol_net,
                  v_net,
                  probtype,
                  lr_optimizer=1e-3,
-                 lam=0.98,
                  epochs_v=10,
-                 gamma=0.99,
                  cg_iters=10,
                  max_kl=0.003,
                  batch_size=256,
@@ -259,8 +206,7 @@ class TRPO_Agent(Policy_Based_Agent):
         policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
         baseline = ValueFunction(net=v_net, optimizer=optimizer)
 
-        self.name = 'TRPO_Agent'
-        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy, gamma=gamma, lam=lam)
+        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy)
 
 
 # ================================================================
@@ -273,8 +219,6 @@ class A2C_Agent(Policy_Based_Agent):
                  probtype,
                  epochs_v=10,
                  epochs_p=10,
-                 lam=0.98,
-                 gamma=0.99,
                  kl_target=0.003,
                  lr_updater=9e-4,
                  lr_optimizer=1e-3,
@@ -295,7 +239,7 @@ class A2C_Agent(Policy_Based_Agent):
         baseline = ValueFunction(net=v_net, optimizer=optimizer)
 
         self.name = 'A2C_Agent'
-        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy, gamma=gamma, lam=lam)
+        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy)
 
 
 # ================================================================
@@ -495,7 +439,7 @@ class Evolution_Agent(Evolution_Based_Agent):
 # ================================================================
 # Deep Deterministic Policy Gradient
 # ================================================================
-class DDPG_Agent(Deterministic_Policy_Based_Agent):
+class DDPG_Agent(Policy_Based_Agent):
     def __init__(self,
                  policy_net,
                  policy_target_net,
@@ -504,7 +448,6 @@ class DDPG_Agent(Deterministic_Policy_Based_Agent):
                  probtype,
                  lr_updater,
                  lr_optimizer,
-                 gamma=0.99,
                  tau=0.01,
                  update_target_every=None,
                  get_info=True):
@@ -530,4 +473,4 @@ class DDPG_Agent(Deterministic_Policy_Based_Agent):
                                                 update_target_every=update_target_every)
 
         self.name = 'DDPG_Agent'
-        Deterministic_Policy_Based_Agent.__init__(self, policy=policy, baseline=baseline, gamma=gamma)
+        Policy_Based_Agent.__init__(self, policy=policy, baseline=baseline)

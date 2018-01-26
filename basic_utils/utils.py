@@ -41,31 +41,6 @@ def merge_before_after(info_before, info_after):
     return info
 
 
-def compute_advantage(vf, paths, gamma, lam):
-    """
-    Compute the advantage using GAE.
-
-    Args:
-        vf: the value function
-        paths: the data paths for calculation. The result is also saved into it.
-        gamma: discount factor
-        lam: GAE factor
-    """
-    for path in paths:
-        rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
-        path['return'] = discount(rewards, gamma)
-        values = vf.predict(path["observation"]).reshape((-1,))
-
-        tds = rewards - values + np.append(values[1:] * gamma, 0)
-        advantages = discount(tds, gamma * lam)
-        path['advantage'] = advantages
-    alladv = np.concatenate([path["advantage"] for path in paths])
-    std = alladv.std()
-    mean = alladv.mean()
-    for path in paths:
-        path["advantage"] = (path["advantage"] - mean) / std
-
-
 def compute_target(qf, path, gamma, double=False):
     """
     Compute the one step bootstrap target for DQN updating.
@@ -85,25 +60,6 @@ def compute_target(qf, path, gamma, double=False):
         ty = qf.predict(next_observations).argmax(axis=1)
         y_targ = qf.predict(next_observations, target=True)[np.arange(next_observations.shape[0]), ty]
     path['y_targ'] = y_targ * not_dones * gamma + rewards
-
-
-def compute_target_determinstic(qf, pol, path, gamma):
-    """
-    Compute the one step bootstrap target for DQN updating.
-
-    Args:
-        qf: the q value function
-        path: the data paths for calculation. The result is also saved into it.
-        gamma: discount factor
-        double: whether to use the double network
-    """
-    next_observations = path['next_observation']
-    not_dones = path['not_done']
-    rewards = path['reward'] * (1 - gamma) if gamma < 0.999 else path['reward']
-
-    action = pol.act(next_observations, target=True)
-    y_targ = qf.predict(next_observations, action, target=True)
-    path['y_targ'] = y_targ.reshape((-1,)) * not_dones * gamma + rewards
 
 
 class Callback:

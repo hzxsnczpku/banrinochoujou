@@ -1,5 +1,5 @@
 from basic_utils.utils import *
-from models.optimizers import Target_updater
+from models.optimizers import Target_Updater
 
 
 class ValueFunction:
@@ -12,7 +12,8 @@ class ValueFunction:
         return self.net(observations).data.cpu().numpy()
 
     def fit(self, path):
-        return self.optimizer(path)
+        stat, info = self.optimizer(path)
+        return 'v', stat, info
 
     def save_model(self, name):
         torch.save(self.net, name + "_baseline.pkl")
@@ -28,7 +29,7 @@ class QValueFunction:
         self.nets = [self.net]
         self.target_net = target_net
         self.optimizer = optimizer
-        self.target_updater = Target_updater(self.net, self.target_net, tau, update_target_every)
+        self.target_updater = Target_Updater(self.net, self.target_net, tau, update_target_every)
 
     def predict(self, ob_no, target=False):
         observations = turn_into_cuda(np_to_var(np.array(ob_no)))
@@ -41,9 +42,9 @@ class QValueFunction:
         return self.predict(ob_no)
 
     def fit(self, paths):
-        stat = self.optimizer(paths)
+        stat, info = self.optimizer(paths)
         self.target_updater.update()
-        return stat
+        return 'q', stat, info
 
     def save_model(self, name):
         torch.save(self.net, name + "_baseline.pkl")
@@ -59,7 +60,7 @@ class QValueFunction_deterministic:
         self.net = net
         self.target_net = target_net
         self.optimizer = optimizer
-        self.target_updater = Target_updater(self.net, self.target_net, tau, update_target_every)
+        self.target_updater = Target_Updater(self.net, self.target_net, tau, update_target_every)
 
     def predict(self, ob_no, action, target=False):
         observations = turn_into_cuda(np_to_var(np.array(ob_no)))
@@ -70,9 +71,9 @@ class QValueFunction_deterministic:
             return self.target_net(observations, actions).data.cpu().numpy()
 
     def fit(self, paths):
-        stat = self.optimizer(paths)
+        stat, info = self.optimizer(paths)
         self.target_updater.update()
-        return stat
+        return 'q', stat, info
 
     def save_model(self, name):
         torch.save(self.net, name + "_baseline.pkl")
@@ -95,8 +96,8 @@ class QValueFunction_Bayesian:
         self.target_mean_net = target_mean_net
         self.target_std_net = target_std_net
         self.optimizer = optimizer
-        self.target_updater_mean = Target_updater(self.mean_net, self.target_mean_net, tau, update_target_every)
-        self.target_updater_std = Target_updater(self.std_net, self.target_std_net, tau, update_target_every)
+        self.target_updater_mean = Target_Updater(self.mean_net, self.target_mean_net, tau, update_target_every)
+        self.target_updater_std = Target_Updater(self.std_net, self.target_std_net, tau, update_target_every)
 
     def predict(self, ob_no, target=False):
         observations = turn_into_cuda(np_to_var(np.array(ob_no)))
@@ -120,7 +121,7 @@ class QValueFunction_Bayesian:
         stat = self.optimizer(paths)
         self.target_updater_mean.update()
         self.target_updater_std.update()
-        return stat
+        return ('v', stat)
 
     def save_model(self, name):
         torch.save(self.net, name + "_baseline.pkl")
