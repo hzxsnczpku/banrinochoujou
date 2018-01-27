@@ -66,7 +66,7 @@ class Callback:
     """
     The information printing class.
     """
-    def __init__(self):
+    def __init__(self, log_file_dir=None):
         self.counter = 0
         self.epi_counter = 0
         self.step_counter = 0
@@ -75,7 +75,7 @@ class Callback:
         self.extra_info = dict()
         self.scores = []
         self.tstart = time.time()
-        self.writer = SummaryWriter()
+        self.writer = SummaryWriter(log_file_dir)
 
     def print_table(self):
         """
@@ -134,7 +134,7 @@ class Callback:
                     self.u_stats[d[0]][k].append(d[1][k])
             self.step_counter += 1
 
-    def add_path_info(self, path_info, extra_info):
+    def add_path_info(self, path_info, extra_info, flag='train'):
         """
         Save the game play information.
 
@@ -148,13 +148,17 @@ class Callback:
             reward = np.sum(p)
             epi_rewards.append(reward)
             path_lens.append(len(p))
-            self.writer.add_scalar('episode_data/reward', reward, self.epi_counter)
-            self.writer.add_scalar('episode_data/path_length', len(p), self.epi_counter)
+            self.writer.add_scalar('episode_data/reward_' + flag, reward, self.epi_counter)
+            self.writer.add_scalar('episode_data/path_length_' + flag, len(p), self.epi_counter)
             self.epi_counter += 1
-        self.path_info['episoderewards'] += epi_rewards
-        self.path_info['pathlengths'] += path_lens
         for d in extra_info:
-            self.extra_info[d] = extra_info[d]
+            self.writer.add_scalar('extra_info/' + d + '_' + flag, extra_info[d], self.epi_counter)
+
+        if flag == 'train':
+            self.path_info['episoderewards'] += epi_rewards
+            self.path_info['pathlengths'] += path_lens
+            for d in extra_info:
+                self.extra_info[d] = extra_info[d]
 
 
 def add_episode_stats(stats, path_info):

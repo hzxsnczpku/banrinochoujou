@@ -221,7 +221,7 @@ class Memory_Data_Generator:
         self.complete_paths = []
         self.scaler = Scaler(env.observation_space_sca.shape)
 
-    def __call__(self):
+    def __call__(self, num_episode=None, use_noise=True):
         """
         Get a fixed number of paths.
 
@@ -233,7 +233,9 @@ class Memory_Data_Generator:
         """
         data = defaultdict(list)
         count = 0
-        while True:
+        episode_count = 0
+        noise_info = {k: 0 for k in self.extra_info_name}
+        while (num_episode is None) or episode_count < num_episode:
             self.env.set_scaler(self.scaler.get())
             ob, env_info = self.env.reset()
             self.noise.reset()
@@ -247,11 +249,13 @@ class Memory_Data_Generator:
                 data["observation"].append(ob)
                 if now_repeat == 0:
                     action = self.agent.act(ob.reshape((1,) + ob.shape))[0]
-                    action, noise_info = self.noise.process_action(action)
-                now_repeat = (now_repeat + 1) % self.action_repeat
+                    if use_noise:
+                        action, noise_info = self.noise.process_action(action)
 
+                now_repeat = (now_repeat + 1) % self.action_repeat
                 for k in noise_info:
                     data[k].append(noise_info[k])
+
                 data["action"].append(action)
                 ob, rew, done, env_info = self.env.step(action)
                 data["next_observation"].append(ob)
@@ -267,6 +271,7 @@ class Memory_Data_Generator:
                                  data['not_done'][-1]))
 
                 if done:
+                    episode_count += 1
                     path = {k: np.array(data[k]) for k in data}
                     self.scaler.update(path['observation_raw'])
                     self.complete_paths.append(path)
@@ -275,10 +280,13 @@ class Memory_Data_Generator:
                 if count >= self.step_num:
                     count = 0
                     sample_return = self.memory.sample() if len(self.memory) > self.rand_explore_len else None
-                    path_info = [p['reward_raw'] for p in self.complete_paths]
                     extra_info = {"Memory_length": len(self.memory)}
-                    for exk in self.extra_info_name:
-                        extra_info[exk] = np.mean([k[exk][-1] for k in self.complete_paths])
+                    if len(self.complete_paths) > 0:
+                        path_info = [p['reward_raw'] for p in self.complete_paths]
+                        for exk in self.extra_info_name:
+                            extra_info[exk] = np.mean([k[exk][-1] for k in self.complete_paths])
+                    else:
+                        path_info = []
                     self.complete_paths = []
                     yield sample_return, path_info, extra_info
 

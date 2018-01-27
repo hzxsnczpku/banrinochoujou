@@ -89,11 +89,14 @@ class Memory_Trainer:
                  env,
                  data_generator,
                  data_processor,
+                 eval_every=50,
                  save_every=None,
-                 print_every=100):
-        self.callback = Callback()
+                 print_every=100,
+                 log_dir_name=None):
+        self.callback = Callback(log_dir_name)
         self.save_every = save_every
         self.print_every = print_every
+        self.eval_every = eval_every
 
         self.agent = agent
         self.env = env
@@ -103,17 +106,22 @@ class Memory_Trainer:
 
     def train(self):
         count = 1
-        for paths, path_info, extra_info in self.data_generator():
-            if paths is not None:
-                processed_path = self.data_processor([paths])
-                u_stats, info = self.agent.update(processed_path)
+        while True:
+            for paths, path_info, extra_info in self.data_generator(self.eval_every):
+                if paths is not None:
+                    processed_path = self.data_processor([paths])
+                    u_stats, info = self.agent.update(processed_path)
 
-                self.memory.update_priorities(paths["idxes"], info["td_err"])
-                self.callback.add_update_info(u_stats)
-                self.callback.add_path_info(path_info, extra_info)
+                    self.memory.update_priorities(paths["idxes"], info["td_err"])
+                    self.callback.add_update_info(u_stats)
+                    self.callback.add_path_info(path_info, extra_info, flag='train')
 
-            if self.callback.num_batches() >= self.print_every:
-                count = self.callback.print_table()
+                if self.callback.num_batches() >= self.print_every:
+                    count = self.callback.print_table()
+
+            for paths, path_info, extra_info in self.data_generator(1, use_noise=False):
+                if paths is not None:
+                    self.callback.add_path_info(path_info, extra_info, flag='val')
 
             if self.save_every is not None and count % self.save_every == 0:
                 np.save(self.env.name + '_' + self.agent.name, self.callback.scores)
