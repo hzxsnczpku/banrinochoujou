@@ -213,6 +213,8 @@ class TRPO_Agent(Policy_Based_Agent):
 # Advantage Actor-Critic
 # ================================================================
 class A2C_Agent(Policy_Based_Agent):
+    name = 'A2C_Agent'
+
     def __init__(self,
                  pol_net,
                  v_net,
@@ -238,7 +240,6 @@ class A2C_Agent(Policy_Based_Agent):
         policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
         baseline = ValueFunction(net=v_net, optimizer=optimizer)
 
-        self.name = 'A2C_Agent'
         Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy)
 
 
@@ -246,14 +247,14 @@ class A2C_Agent(Policy_Based_Agent):
 # Proximal Policy Optimization
 # ================================================================
 class PPO_adapted_Agent(Policy_Based_Agent):
+    name = 'PPO_adapted_Agent'
+
     def __init__(self,
                  pol_net,
                  v_net,
                  probtype,
                  epochs_v=10,
                  epochs_p=10,
-                 lam=0.98,
-                 gamma=0.99,
                  kl_target=0.003,
                  lr_updater=9e-4,
                  lr_optimizer=1e-3,
@@ -282,8 +283,7 @@ class PPO_adapted_Agent(Policy_Based_Agent):
         policy = StochPolicy(net=pol_net, probtype=probtype, updater=updater)
         baseline = ValueFunction(net=v_net, optimizer=optimizer)
 
-        self.name = 'PPO_adapted_Agent'
-        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy, gamma=gamma, lam=lam)
+        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy)
 
 
 class PPO_clip_Agent(Policy_Based_Agent):
@@ -293,8 +293,6 @@ class PPO_clip_Agent(Policy_Based_Agent):
                  probtype,
                  epochs_v=10,
                  epochs_p=10,
-                 lam=0.98,
-                 gamma=0.99,
                  kl_target=0.003,
                  lr_updater=9e-4,
                  lr_optimizer=1e-3,
@@ -321,7 +319,7 @@ class PPO_clip_Agent(Policy_Based_Agent):
         baseline = ValueFunction(net=v_net, optimizer=optimizer)
 
         self.name = 'PPO_clip_Agent'
-        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy, gamma=gamma, lam=lam)
+        Policy_Based_Agent.__init__(self, baseline=baseline, policy=policy)
 
 
 # ================================================================
