@@ -420,10 +420,11 @@ class DDPG_Updater(Updater):
 # Adam Optimizer
 # ================================================================
 class Adam_Optimizer(Optimizer):
-    def __init__(self, net, lr, epochs, batch_size, get_data=True):
+    def __init__(self, net, lr, epochs, batch_size, local_replay=True, get_data=True):
         self.net = net
         self.optimizer = optim.Adam(self.net.parameters(), lr)
         self.epochs = epochs
+        self.local_replay = local_replay
         self.replay_buffer_x = None
         self.replay_buffer_y = None
         self.get_data = get_data
@@ -451,8 +452,10 @@ class Adam_Optimizer(Optimizer):
         else:
             x_train = torch.cat([observations, self.replay_buffer_x], dim=0)
             y_train = torch.cat([y_targ, self.replay_buffer_y], dim=0)
-        self.replay_buffer_x = observations
-        self.replay_buffer_y = y_targ
+
+        if self.local_replay:
+            self.replay_buffer_x = observations
+            self.replay_buffer_y = y_targ
 
         for e in range(self.epochs):
             sortinds = np.random.permutation(observations.size()[0])
@@ -611,11 +614,78 @@ class DDPG_Optimizer(Optimizer):
             return merge_before_after(info_before, info_after), {"td_err": td_err.data.cpu().numpy()}
 
 
+class DDPG_Optimizer_v2(Optimizer):
+    def __init__(self, net, lr, epochs, batch_size, local_replay=True, get_data=True):
+        self.net = net
+        self.epochs = epochs
+        self.local_replay = local_replay
+        self.replay_buffer_x = None
+        self.replay_buffer_y = None
+        self.replay_buffer_a = None
+        self.optimizer = optim.Adam(params=self.net.parameters(), lr=lr)
+        self.get_data = get_data
+        self.default_batch_size = batch_size
+
+    def _derive_info(self, observations, y_targ, actions):
+        y_pred = self.net(observations, actions)
+        explained_var = 1 - torch.var(y_targ - y_pred) / torch.var(y_targ)
+        loss = (y_targ - y_pred).pow(2).mean()
+        info = {'explained_var': explained_var.data[0], 'loss': loss.data[0]}
+        return info
+
+    def __call__(self, path):
+        observations = turn_into_cuda(path["observation"])
+        actions = turn_into_cuda(path["action"])
+        y_targ = turn_into_cuda(path['y_targ'])
+
+        if self.get_data:
+            info_before = self._derive_info(observations, y_targ, actions)
+
+        num_batches = max(observations.size()[0] // self.default_batch_size, 1)
+        batch_size = observations.size()[0] // num_batches
+
+        if self.replay_buffer_x is None:
+            x_train, y_train, a_train = observations, y_targ, actions
+        else:
+            x_train = torch.cat([observations, self.replay_buffer_x], dim=0)
+            y_train = torch.cat([y_targ, self.replay_buffer_y], dim=0)
+            a_train = torch.cat([actions, self.replay_buffer_a], dim=0)
+
+        if self.local_replay:
+            self.replay_buffer_x = observations
+            self.replay_buffer_y = y_targ
+            self.replay_buffer_a = actions
+
+        for e in range(self.epochs):
+            sortinds = np.random.permutation(observations.size()[0])
+            sortinds = turn_into_cuda(np_to_var(sortinds).long())
+            for j in range(num_batches):
+                start = j * batch_size
+                end = (j + 1) * batch_size
+                obs_ph = x_train.index_select(0, sortinds[start:end])
+                act_ph = a_train.index_select(0, sortinds[start:end])
+                val_ph = y_train.index_select(0, sortinds[start:end])
+                out = self.net(obs_ph, act_ph)
+                loss = (out - val_ph).pow(2).mean()
+                self.net.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+
+        if self.get_data:
+            info_after = self._derive_info(observations, y_targ, actions)
+            return merge_before_after(info_before, info_after), {}
+        else:
+            return {}, {}
+
+
+# ================================================================
+# Target Updater
+# ================================================================
 class Target_Updater:
     """
     A class for updating the target network.
     """
-    def __init__(self, net, target_net, tau=0.01, update_target_every=None):
+    def __init__(self, net, target_net=None, tau=0.01, update_target_every=None):
         self.net = net
         self.target_net = target_net
         self.counter = 0
@@ -623,13 +693,14 @@ class Target_Updater:
         self.tau = tau
 
     def update(self):
-        self.counter += 1
-        if self.update_target_every is not None:
-            if self.counter % self.update_target_every == 0:
+        if self.target_net is not None:
+            self.counter += 1
+            if self.update_target_every is not None:
+                if self.counter % self.update_target_every == 0:
+                    params = get_flat_params_from(self.net)
+                    set_flat_params_to(self.target_net, params)
+            else:
                 params = get_flat_params_from(self.net)
-                set_flat_params_to(self.target_net, params)
-        else:
-            params = get_flat_params_from(self.net)
-            params_target = get_flat_params_from(self.target_net)
-            new_params = self.tau * params + (1 - self.tau) * params_target
-            set_flat_params_to(self.target_net, new_params)
+                params_target = get_flat_params_from(self.target_net)
+                new_params = self.tau * params + (1 - self.tau) * params_target
+                set_flat_params_to(self.target_net, new_params)

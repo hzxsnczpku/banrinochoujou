@@ -56,7 +56,7 @@ class QValueFunction:
 
 
 class QValueFunction_deterministic:
-    def __init__(self, net, target_net, optimizer, tau=0.01, update_target_every=None):
+    def __init__(self, net, target_net=None, optimizer=None, tau=0.01, update_target_every=None):
         self.net = net
         self.target_net = target_net
         self.optimizer = optimizer

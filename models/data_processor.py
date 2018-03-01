@@ -29,6 +29,7 @@ class Calculate_Return:
     def __call__(self, paths):
         for path in paths:
             path['return'] = discount(path['reward'], self.gamma)
+            path['y_targ'] = path['return']
 
         return paths
 

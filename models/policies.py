@@ -7,8 +7,7 @@ class StochPolicy:
     def __init__(self, net, probtype, updater, target_net=None, tau=0.01, update_target_every=None):
         self.net = net
         self.target_net = target_net
-        if target_net is not None:
-            self.target_updater = Target_Updater(self.net, self.target_net, tau, update_target_every)
+        self.target_updater = Target_Updater(self.net, self.target_net, tau, update_target_every)
         self.probtype = probtype
         self.updater = updater
 
@@ -22,8 +21,7 @@ class StochPolicy:
 
     def update(self, *args):
         stats = self.updater(*args)
-        if self.target_net is not None:
-            self.target_updater.update()
+        self.target_updater.update()
         return stats
 
     def save_model(self, name):

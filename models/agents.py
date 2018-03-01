@@ -326,6 +326,8 @@ class PPO_clip_Agent(Policy_Based_Agent):
 # Deep Q Learning
 # ================================================================
 class DQN_Agent(Value_Based_Agent):
+    name = 'DQN_Agent'
+
     def __init__(self,
                  net,
                  target_net,
@@ -342,7 +344,6 @@ class DQN_Agent(Value_Based_Agent):
                                   optimizer=optimizer,
                                   update_target_every=update_target_every)
 
-        self.name = 'DQN_Agent'
         Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=False)
 
 
@@ -350,6 +351,8 @@ class DQN_Agent(Value_Based_Agent):
 # Bayesian Deep Q Learning
 # ================================================================
 class Bayesian_DQN_Agent(Value_Based_Agent):
+    name = 'Bayesian_DQN_Agent'
+
     def __init__(self,
                  net,
                  mean_net,
@@ -384,7 +387,6 @@ class Bayesian_DQN_Agent(Value_Based_Agent):
                                            tau=0.01,
                                            update_target_every=update_target_every)
 
-        self.name = 'Bayesian_DQN_Agent'
         Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=False)
 
 
@@ -392,6 +394,8 @@ class Bayesian_DQN_Agent(Value_Based_Agent):
 # Double Deep Q Learning
 # ================================================================
 class Double_DQN_Agent(Value_Based_Agent):
+    name = 'Double_DQN_Agent'
+
     def __init__(self,
                  net,
                  target_net,
@@ -408,7 +412,6 @@ class Double_DQN_Agent(Value_Based_Agent):
                                   optimizer=optimizer,
                                   update_target_every=update_target_every)
 
-        self.name = 'Double_DQN_Agent'
         Value_Based_Agent.__init__(self, baseline=baseline, gamma=gamma, double=True)
 
 
@@ -461,9 +464,16 @@ class DDPG_Agent(Policy_Based_Agent):
                              probtype=probtype,
                              updater=updater)
 
-        optimizer = DDPG_Optimizer(net=q_net,
-                                   lr=lr_optimizer,
-                                   get_data=get_info)
+        # optimizer = Adam_Q_Optimizer(net=q_net,
+        #                             lr=lr_optimizer,
+        #                             get_data=get_info)
+
+        optimizer = DDPG_Optimizer_v2(net=q_net,
+                                      lr=lr_optimizer,
+                                      batch_size=256,
+                                      epochs=10,
+                                      get_data=get_info)
+
         baseline = QValueFunction_deterministic(net=q_net,
                                                 target_net=q_target_net,
                                                 optimizer=optimizer,

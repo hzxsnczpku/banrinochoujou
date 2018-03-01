@@ -10,8 +10,9 @@ class Path_Trainer:
                  data_generator,
                  data_processor,
                  save_every=None,
-                 print_every=10):
-        self.callback = Callback()
+                 print_every=10,
+                 log_dir_name=None):
+        self.callback = Callback(log_dir_name)
         self.save_every = save_every
         self.print_every = print_every
 

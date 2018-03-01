@@ -11,6 +11,7 @@ class Parallel_Path_Data_Generator:
                  env,
                  n_worker,
                  path_num,
+                 noise,
                  action_repeat,
                  render):
         """
@@ -32,13 +33,14 @@ class Parallel_Path_Data_Generator:
         self.receivers = []
         self.scaler = Scaler(env.observation_space_sca.shape)
         self.agent = agent
+        self.extra_info_name = noise.extra_info
         for i in range(self.n_worker):
             s = Queue()
             r = Queue()
             self.senders.append(s)
             self.receivers.append(r)
             self.workers.append(
-                mp.Process(target=path_rollout, args=(agent, env, path_num, r, s, render, action_repeat, i)))
+                mp.Process(target=path_rollout, args=(agent, env, path_num, r, s, noise, render, action_repeat, i)))
         for worker in self.workers:
             worker.start()
 
@@ -54,6 +56,7 @@ class Parallel_Path_Data_Generator:
         """
         episode_counter = 0
         paths = []
+        noise_info = {k: 0 for k in self.extra_info_name}
         for i in range(self.n_worker):
             paths.append(defaultdict(list))
 
@@ -83,6 +86,8 @@ class Parallel_Path_Data_Generator:
                 if counter == self.n_worker:
                     path_info = [p['reward_raw'] for p in complete_paths]
                     extra_info = {}
+                    for exk in self.extra_info_name:
+                        extra_info[exk] = np.mean([k[exk][-1] for k in complete_paths])
                     yield complete_paths, path_info, extra_info
 
 
@@ -296,6 +301,7 @@ def path_rollout(agent,
                  path_num,
                  require_q,
                  recv_q,
+                 noise,
                  render,
                  action_repeat,
                  process_id=0):
@@ -320,6 +326,7 @@ def path_rollout(agent,
     while True:
         env.set_scaler(scale)
         ob, info = env.reset()
+        noise.reset()
         now_repeat = 0
         for k in info:
             single_data[k].append(info[k])
@@ -330,7 +337,10 @@ def path_rollout(agent,
             single_data["observation"].append(ob)
             if now_repeat == 0:
                 action = agent.act(ob.reshape((1,) + ob.shape))[0]
+                action, noise_info = noise.process_action(action)
             now_repeat = (now_repeat + 1) % action_repeat
+            for k in noise_info:
+                single_data[k].append(noise_info[k])
             single_data["action"].append(action)
             ob, rew, done, info = env.step(agent.process_act(action))
             single_data["next_observation"].append(ob)
