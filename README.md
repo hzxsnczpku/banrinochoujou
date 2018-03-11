@@ -4,7 +4,8 @@
 Here is a Pytorch implementation of the Reinforcement Learning Algorithms.
 
 ## News: Currently doing some mujoco experiments with the DDPG algorithm.
-I am tuning the DDPG algorithm on the swimmer environment currently.
+I am tuning the DDPG algorithm on the swimmer environment currently. The newest codes are placed under the repository of Megvii Inc. https://github.com/megvii-rl/pytorch-gym
+
 
 ## News: My implementation of the Bayesian methods in Q-Learning
 I recently have done some simple experiments on the Bayesian methods in Q-Learning. My main ideas are borrowed from the following three papers,
