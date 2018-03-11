@@ -14,7 +14,7 @@ I recently have done some simple experiments on the Bayesian methods in Q-Learni
 * [Weight uncertainty in neural networks](https://arxiv.org/abs/1505.05424)
 * [An empirical evaluation of thompson sampling](http://papers.nips.cc/paper/4321-an-empirical-evaluation-of-thompson-sampling.pdf)
 
-I have tried the variance inference approach and the dropout approach on the CartPole, Acrobot and nChain environment. The results of different algorithms are shown in the following figures and tables. A more specific report is placed in https://github.com/hzxsnczpku/banrinochoujou/blob/master/doc/hw.pdf. 
+I have tried the variance inference approach and the dropout approach on the CartPole, Acrobot and nChain environment. The results of different algorithms are shown in the following figures and tables. A more detailed report is placed in https://github.com/hzxsnczpku/banrinochoujou/blob/master/doc/hw.pdf.
 
 ### nChain
 | N | 20 | 30 | 50 | 80 | 100 |
